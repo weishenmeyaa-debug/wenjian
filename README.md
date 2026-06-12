@@ -37,7 +37,7 @@ Windows 用户也可以双击 `start.bat`，Mac 用户双击 `start.command`。
 2. 编辑或通过 AI 批量导入规则
 3. 保存为新规范，立即生效
 
-详细说明见 [使用指南](使用指南.md)。
+详细说明见 [使用指南](使用指南.md)，也可以看 [小红书使用教程](http://xhslink.com/o/YPxpXsGCBh)。
 
 ## 技术栈
 
