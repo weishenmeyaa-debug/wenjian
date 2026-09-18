@@ -1,200 +1,126 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>毕业设计格式检测</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, "Microsoft YaHei", "微软雅黑", sans-serif; background: #f5f5f5; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 30px 0; }
-.container { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); max-width: 650px; width: 90%; }
-h1 { font-size: 22px; text-align: center; margin-bottom: 8px; }
-.subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 30px; }
+{% extends "base.html" %}
+{% set active_page = "check" %}
+{% block title %}文检 · Word 文档格式检查{% endblock %}
 
-.section { border: 1px solid #e8e8e8; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
-.section h2 { font-size: 15px; margin-bottom: 12px; color: #333; display: flex; align-items: center; gap: 8px; }
-.section h2 .badge-sm { font-size: 11px; padding: 2px 6px; border-radius: 3px; }
-.section h2 .badge-sm.on { background: #e8f5e9; color: #2e7d32; }
-.section h2 .badge-sm.off { background: #fff3e0; color: #e65100; }
+{% block body %}
+<main class="page-shell">
+  <div class="hero-grid">
+    <section class="hero-copy" aria-labelledby="hero-title">
+      <p class="eyebrow">LOCAL WORD FORMAT REVIEW</p>
+      <h1 class="display-title" id="hero-title">先把格式问题，<br>交给规则找出来。</h1>
+      <p class="lede">选择一套明确的格式规则，放入 Word 文档，查看哪里不符合、应该改成什么。内容判断仍由人完成。</p>
+      <ul class="hero-points" aria-label="工具特点">
+        <li>文件仅在本机处理</li><li>支持多文件检查</li><li>结果按轻重分类</li><li>规则可以自行维护</li>
+      </ul>
+    </section>
 
-.spec-list { margin: 10px 0; }
-.spec-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #f9f9f9; border-radius: 4px; margin-bottom: 4px; font-size: 13px; color: #555; }
-.spec-item .remove { color: #c33; cursor: pointer; font-size: 16px; padding: 0 4px; text-decoration: none; }
-.spec-item .remove:hover { color: #900; }
+    <section class="workspace" aria-labelledby="workspace-title">
+      <div class="workspace__head"><h2 id="workspace-title">新建一次格式检查</h2><p>按照三个步骤完成。工具不会修改原文件。</p></div>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}<div class="flash-stack" style="padding:18px 28px 0">{% for category, msg in messages %}<div class="flash {{ category }}">{{ msg }}</div>{% endfor %}</div>{% endif %}
+      {% endwith %}
 
-.upload-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
-.upload-row input[type="file"] { flex: 1; font-size: 13px; }
-.upload-row .btn-sm { padding: 6px 14px; font-size: 13px; border: 1px solid #1976d2; background: #fff; color: #1976d2; border-radius: 4px; cursor: pointer; white-space: nowrap; }
-.upload-row .btn-sm:hover { background: #e3f2fd; }
+      <form action="{{ url_for('check') }}" method="post" enctype="multipart/form-data" id="checkForm">
+        <div class="step">
+          <span class="step__number">1</span>
+          <div class="step__body">
+            <h3>选择检查规则</h3>
+            <label class="field-label" for="profileSelect">这份文档应该遵守哪套格式？</label>
+            <select class="select" id="profileSelect" name="profile_id">
+              {% for profile in profiles %}
+              <option value="{{ profile.id }}" {% if selected_profile and selected_profile.id == profile.id %}selected{% endif %} data-name="{{ profile.name }}" data-description="{{ profile.description }}" data-meta="{{ profile.rule_count }} 条规则 · {{ profile.source }}">{{ profile.name }}</option>
+              {% endfor %}
+            </select>
+            {% if selected_profile %}
+            <div class="profile-summary" id="profileSummary"><strong id="profileSummaryName">{{ selected_profile.name }}</strong><span id="profileSummaryDescription">{{ selected_profile.description }}</span><br><span id="profileSummaryMeta">{{ selected_profile.rule_count }} 条规则 · {{ selected_profile.source }}</span></div>
+            {% endif %}
+          </div>
+        </div>
 
-.upload-zone { border: 2px dashed #ccc; border-radius: 8px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 20px; }
-.upload-zone:hover, .upload-zone.dragover { border-color: #1976d2; background: #e3f2fd; }
-.upload-zone p { color: #666; font-size: 15px; margin-bottom: 8px; }
-.upload-zone .hint { color: #999; font-size: 13px; }
-.file-list { margin: 15px 0; }
-.file-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 6px; font-size: 14px; }
-.file-item .remove { color: #c33; cursor: pointer; font-size: 18px; padding: 0 4px; }
-.file-item .remove:hover { color: #900; }
-.btn { display: block; width: 100%; padding: 12px; background: #1976d2; color: #fff; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; transition: background 0.2s; }
-.btn:hover { background: #1565c0; }
-.btn:disabled { background: #aaa; cursor: not-allowed; }
-.flash { padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
-.flash.error { background: #fee; color: #c33; }
-.flash.success { background: #e8f5e9; color: #2e7d32; }
-.info-box { background: #f0f7ff; border: 1px solid #cce0ff; border-radius: 6px; padding: 15px; margin-bottom: 20px; font-size: 13px; color: #555; line-height: 1.8; }
-.info-box h3 { font-size: 14px; color: #333; margin-bottom: 6px; }
+        <div class="step">
+          <span class="step__number">2</span>
+          <div class="step__body">
+            <h3>添加需要检查的文档</h3>
+            <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-controls="fileInput">
+              <div class="drop-zone__inner">
+                <span class="drop-zone__icon" aria-hidden="true"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></span>
+                <p>拖入文件，或点击选择</p>
+                <span>推荐 .docx；一次最多 {{ max_files }} 个文件{% if old_doc_supported %}，本机兼容旧 .doc{% endif %}</span>
+              </div>
+            </div>
+            <input type="file" id="fileInput" name="files" multiple accept=".docx{% if old_doc_supported %},.doc{% endif %}" hidden>
+            <div class="file-list" id="fileList" aria-live="polite"></div>
+          </div>
+        </div>
 
-.nav-btns { display: flex; gap: 12px; margin-bottom: 25px; }
-.nav-btn { flex: 1; display: block; text-decoration: none; background: #fff; border: 2px solid #e0e0e0; border-radius: 10px; padding: 16px 14px; text-align: center; transition: all 0.2s; }
-.nav-btn:hover { border-color: #1976d2; background: #f0f7ff; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(25,118,210,0.12); }
-.nav-icon { display: block; font-size: 24px; margin-bottom: 6px; }
-.nav-label { display: block; font-size: 15px; font-weight: 600; color: #333; margin-bottom: 4px; }
-.nav-desc { display: block; font-size: 12px; color: #888; }
-</style>
-</head>
-<body>
-<div class="container">
-  <h1>毕业设计格式检测</h1>
-  <p class="subtitle">上传 Word 文件，自动检查格式规范</p>
-  <p style="text-align:center;font-size:12px;color:#e65100;background:#fff3e0;padding:6px 12px;border-radius:4px;margin-bottom:20px;">⚠ 检测结果仅供参考，请以指导老师意见为准</p>
-
-  <!-- 功能入口 -->
-  <div class="nav-btns">
-    <a href="/editor" class="nav-btn">
-      <span class="nav-icon">⚙</span>
-      <span class="nav-label">规则编辑器</span>
-      <span class="nav-desc">适配不同学校的格式要求</span>
-    </a>
-    <a href="/examples" class="nav-btn">
-      <span class="nav-icon">📖</span>
-      <span class="nav-label">格式参考</span>
-      <span class="nav-desc">正确格式示例与常见错误</span>
-    </a>
+        <div class="step">
+          <span class="step__number">3</span>
+          <div class="step__body">
+            <h3>开始检查</h3>
+            <button type="submit" class="btn btn--primary btn--full" id="submitBtn" disabled><span>检查所选文档</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+            <p class="action-note">上传文件会在本次检查结束后清理；报告只在当前程序运行期间短期保留。</p>
+          </div>
+        </div>
+      </form>
+    </section>
   </div>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-  {% for category, msg in messages %}
-  <div class="flash {{ category }}">{{ msg }}</div>
-  {% endfor %}
-  {% endwith %}
-
-  <!-- 规范文件区域 -->
-  <div class="section">
-    <h2>
-      当前使用的格式规范
-      {% if has_builtin or specs %}
-      <span class="badge-sm on">已加载</span>
-      {% else %}
-      <span class="badge-sm off">未设置</span>
-      {% endif %}
-    </h2>
-
-    {% if specs %}
-    {% for spec in specs %}
-    <div class="spec-item">
-      <span>{{ spec }}</span>
+  <section class="section-block" aria-labelledby="scope-title">
+    <div class="section-heading"><h2 id="scope-title">它负责找问题，不替你下结论。</h2><p>不同材料必须选择不同规则。没有明确规则时，工具只能检查通用排版，不能宣称文档“完全正确”。</p></div>
+    <div class="feature-grid">
+      <article class="feature-card"><span class="feature-card__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8M8 11h6"/></svg></span><h3>规则模板</h3><p>毕业论文只是其中一套模板。课程材料、申报书或公文可以建立各自规则。</p></article>
+      <article class="feature-card"><span class="feature-card__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 7v5c0 5 3.4 8 8 9 4.6-1 8-4 8-9V7z"/><path d="m9 12 2 2 4-4"/></svg></span><h3>本地处理</h3><p>文档不发送到外部平台，也不写入公开仓库；仍建议使用脱敏副本检查。</p></article>
+      <article class="feature-card"><span class="feature-card__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><h3>可复核报告</h3><p>每个问题保留位置、规则要求和当前情况，方便回到 Word 逐项修改。</p></article>
     </div>
-    {% endfor %}
-    {% elif has_builtin %}
-    <div class="spec-item">
-      <span>内置规则（默认）</span>
-    </div>
-    {% endif %}
+  </section>
+</main>
+{% endblock %}
 
-    <p style="font-size:12px; color:#999; margin-top:8px;">如需适配其他学校，请使用上方「<a href="/editor" style="color:#1976d2;">规则编辑器</a>」。</p>
-  </div>
-
-  <!-- 论文检测区域 -->
-  <form action="/check" method="post" enctype="multipart/form-data" id="checkForm">
-    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-      <p>点击或拖拽上传毕业设计文件</p>
-      <p class="hint">支持 .doc 和 .docx 格式，可同时上传多个文件批量检测</p>
-    </div>
-    <input type="file" id="fileInput" name="files" multiple accept=".doc,.docx" style="display:none">
-    <div class="file-list" id="fileList"></div>
-    <button type="submit" class="btn" id="submitBtn" disabled>开始检测</button>
-  </form>
-
-  <div class="info-box">
-    <h3>检测项目</h3>
-    字体字号（封面、标题、正文、摘要、参考文献等）<br>
-    段落对齐方式（居中、两端对齐等）<br>
-    行间距（固定值 22pt / 18pt）<br>
-    文档结构完整性<br>
-    标题编号规范性<br>
-    图表编号格式（含子编号（a）（b））<br>
-    <strong>脚注</strong>编号顺序与格式（新增）<br>
-    参考文献数量、格式与类型标识（GB/T 7714）<br>
-    页眉、页面设置<br>
-    摘要与正文字数
-  </div>
-
-  <div style="background:#f0f7ff;border:1px solid #cce0ff;border-radius:6px;padding:12px 15px;margin-bottom:20px;font-size:12px;color:#555;line-height:1.8;">
-    <strong>使用须知</strong><br>
-    1. 请在上传前自行删除文档中的人名、签名等个人隐私信息。本工具会跳过相关内容的检测，因未删除个人信息导致的隐私问题，责任由用户自行承担。<br>
-    2. 本工具为辅助检测，不保证100%准确。<br>
-    3. 所有上传文件仅用于本次检测，检测完成后自动删除，不会被存储或用于其他用途。<br>
-    4. 本工具采用 CC BY-NC-SA 4.0 许可，禁止商业用途。
-  </div>
-
-  <!-- 署名 -->
-  {% if show_footer %}
-  <div style="text-align:center;margin-top:30px;padding-top:20px;border-top:1px solid #eee;">
-    <p style="font-size:13px;color:#999;margin-bottom:10px;">Made with ❤ by <strong style="color:#666;">xigua</strong></p>
-    <p style="font-size:12px;color:#bbb;margin-bottom:8px;">觉得好用？请我喝杯奶茶 ☕</p>
-    <img src="/static/qr_placeholder.png" alt="打赏二维码" style="width:120px;height:120px;border-radius:8px;border:1px solid #eee;">
-  </div>
-  {% endif %}
-</div>
-
+{% block scripts %}
 <script>
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 const fileList = document.getElementById('fileList');
 const submitBtn = document.getElementById('submitBtn');
-
+const profileSelect = document.getElementById('profileSelect');
+const maxFiles = {{ max_files }};
+const oldDocSupported = {{ old_doc_supported | tojson }};
 let selectedFiles = [];
 
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+function openPicker() { fileInput.click(); }
+dropZone.addEventListener('click', openPicker);
+dropZone.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openPicker(); } });
+dropZone.addEventListener('dragover', event => { event.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('dragover');
-  addFiles(e.dataTransfer.files);
-});
-
+dropZone.addEventListener('drop', event => { event.preventDefault(); dropZone.classList.remove('dragover'); addFiles(event.dataTransfer.files); });
 fileInput.addEventListener('change', () => addFiles(fileInput.files));
 
 function addFiles(files) {
-  for (const f of files) {
-    const ext = f.name.split('.').pop().toLowerCase();
-    if ((ext === 'docx' || ext === 'doc') && !selectedFiles.some(x => x.name === f.name)) {
-      selectedFiles.push(f);
-    }
+  for (const file of files) {
+    const extension = file.name.split('.').pop().toLowerCase();
+    const allowed = extension === 'docx' || (extension === 'doc' && oldDocSupported);
+    if (allowed && !selectedFiles.some(item => item.name === file.name && item.size === file.size) && selectedFiles.length < maxFiles) selectedFiles.push(file);
   }
-  renderList();
+  renderFiles();
 }
-
-function removeFile(idx) {
-  selectedFiles.splice(idx, 1);
-  renderList();
-}
-
-function renderList() {
-  fileList.innerHTML = selectedFiles.map((f, i) =>
-    `<div class="file-item"><span>${f.name}</span><span class="remove" onclick="removeFile(${i})">×</span></div>`
-  ).join('');
+function removeFile(index) { selectedFiles.splice(index, 1); renderFiles(); }
+function renderFiles() {
+  fileList.innerHTML = selectedFiles.map((file, index) => `<div class="file-item"><span class="file-item__name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)} · ${formatSize(file.size)}</span><button type="button" onclick="removeFile(${index})" aria-label="移除 ${escapeHtml(file.name)}">×</button></div>`).join('');
   submitBtn.disabled = selectedFiles.length === 0;
 }
+function formatSize(bytes) { return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`; }
+function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
 
-document.getElementById('checkForm').addEventListener('submit', function() {
-  if (selectedFiles.length === 0) return;
-  const dt = new DataTransfer();
-  selectedFiles.forEach(f => dt.items.add(f));
-  fileInput.files = dt.files;
-  submitBtn.disabled = true;
-  submitBtn.textContent = '检测中...';
+profileSelect.addEventListener('change', () => {
+  const option = profileSelect.options[profileSelect.selectedIndex];
+  document.getElementById('profileSummaryName').textContent = option.dataset.name || option.textContent;
+  document.getElementById('profileSummaryDescription').textContent = option.dataset.description || '';
+  document.getElementById('profileSummaryMeta').textContent = option.dataset.meta || '';
+});
+document.getElementById('checkForm').addEventListener('submit', () => {
+  if (!selectedFiles.length) return;
+  const transfer = new DataTransfer(); selectedFiles.forEach(file => transfer.items.add(file)); fileInput.files = transfer.files;
+  submitBtn.disabled = true; submitBtn.querySelector('span').textContent = '正在检查，请稍候…';
 });
 </script>
-</body>
-</html>
+{% endblock %}

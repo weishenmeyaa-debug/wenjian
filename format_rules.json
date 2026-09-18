@@ -1,4 +1,14 @@
-[
+{
+  "profile": {
+    "name": "本科毕业设计（论文）基础规则",
+    "document_type": "本科毕业设计（论文）",
+    "description": "检查结构、文字、图表、参考文献与页面设置等常见格式",
+    "source": "内置示例规则，请按正式规范复核",
+    "version": "1.0",
+    "updated_at": "2026-09-18",
+    "enabled_checks": null
+  },
+  "rules": [
   {
     "section": "word_count",
     "label": "正文字数",
@@ -218,4 +228,5 @@
     "height_mm": 297,
     "source": "P184"
   }
-]
+  ]
+}

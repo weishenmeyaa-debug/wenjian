@@ -1,5 +1,5 @@
 #!/bin/bash
-# 毕业设计格式检测工具 — Mac 一键启动
+# 文检 — Mac 一键启动
 cd "$(dirname "$0")"
 
 # 检测 python3
@@ -29,7 +29,7 @@ done
 
 # 启动
 echo ""
-echo "✅ 启动成功！浏览器将自动打开..."
+echo "✅ 文检启动成功，浏览器将自动打开..."
 echo "   如果没有自动打开，请访问: http://localhost:$PORT"
 echo "   关闭此窗口即可停止程序"
 echo ""

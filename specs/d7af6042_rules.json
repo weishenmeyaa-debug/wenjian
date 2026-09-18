@@ -1,4 +1,14 @@
-[
+{
+  "profile": {
+    "name": "本科毕业设计（论文）本地规则",
+    "document_type": "本科毕业设计（论文）",
+    "description": "根据本地规范整理的规则副本，使用前仍需对照正式文件",
+    "source": "本地规则文件",
+    "version": "1.0",
+    "updated_at": "2026-09-18",
+    "enabled_checks": null
+  },
+  "rules": [
   {
     "section": "word_count",
     "label": "正文字数",
@@ -218,4 +228,5 @@
     "height_mm": 297,
     "source": "P184"
   }
-]
+  ]
+}

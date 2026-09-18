@@ -1,315 +1,72 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>格式参考 — 正确示例</title>
+{% extends "base.html" %}
+{% set active_page = "examples" %}
+{% block title %}格式参考 · 文检{% endblock %}
+
+{% block head %}
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, "Microsoft YaHei", "微软雅黑", sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; }
-.topbar { background: #fff; padding: 12px 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
-.topbar a { color: #1976d2; text-decoration: none; font-size: 14px; }
-.topbar a:hover { text-decoration: underline; }
-.topbar .title { font-size: 16px; font-weight: 500; }
-.container { max-width: 900px; margin: 0 auto; padding: 20px; }
-h1 { font-size: 24px; margin-bottom: 6px; }
-.subtitle { color: #888; font-size: 14px; margin-bottom: 30px; }
-.nav { background: #fff; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; gap: 20px; flex-wrap: wrap; }
-.nav a { color: #1976d2; text-decoration: none; font-size: 14px; font-weight: 500; }
-.nav a:hover { text-decoration: underline; }
-
-.section { background: #fff; padding: 25px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.section h2 { font-size: 18px; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #e3f2fd; color: #1565c0; }
-.section h3 { font-size: 15px; margin: 18px 0 10px; color: #333; }
-
-.example-box { background: #f9f9f9; border: 1px solid #e8e8e8; border-radius: 6px; padding: 15px 18px; margin-bottom: 12px; font-size: 14px; line-height: 2; }
-.example-box .label { font-size: 12px; color: #1976d2; font-weight: 500; margin-bottom: 6px; text-transform: uppercase; }
-.example-box .correct { color: #2e7d32; }
-.example-box .wrong { color: #c62828; text-decoration: line-through; }
-.example-box .code { font-family: "SimSun", "宋体", serif; }
-
-.note { background: #fff8e1; border-left: 3px solid #ffa726; padding: 10px 15px; border-radius: 0 4px 4px 0; margin: 10px 0; font-size: 13px; color: #555; }
-.note strong { color: #e65100; }
-
-.rule-list { padding-left: 20px; font-size: 14px; }
-.rule-list li { margin-bottom: 6px; }
-
-.table-compare { width: 100%; border-collapse: collapse; font-size: 13px; margin: 10px 0; }
-.table-compare th { background: #e3f2fd; text-align: left; padding: 8px 10px; border: 1px solid #cce0ff; }
-.table-compare td { padding: 8px 10px; border: 1px solid #eee; vertical-align: top; }
-.table-compare .col-correct { color: #2e7d32; }
-.table-compare .col-wrong { color: #c62828; }
-
-.toc-link { display: inline-block; padding: 4px 12px; background: #e3f2fd; border-radius: 15px; font-size: 13px; color: #1565c0; text-decoration: none; margin: 3px; }
-.toc-link:hover { background: #bbdefb; }
-
-.subfig-demo { display: flex; gap: 20px; margin: 15px 0; padding: 20px; background: #fafafa; border: 1px solid #e8e8e8; border-radius: 8px; }
-.subfig-item { flex: 1; text-align: center; }
-.subfig-placeholder { width: 100%; aspect-ratio: 16/9; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #555; font-size: 13px; border: 1px solid #ddd; }
-.subfig-icon { font-size: 12px; color: #999; margin-bottom: 4px; }
-.subfig-label { font-size: 14px; font-weight: 500; color: #333; }
-.subfig-caption { font-family: "SimSun", "{{ caption_font }}", serif; font-size: {{ caption_size }}pt; color: #333; margin-top: 8px; }
+.reference-nav{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}.reference-nav a{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;text-decoration:none;font-size:13px;font-weight:700}.reference-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.reference-card{padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}.reference-card--wide{grid-column:1/-1}.reference-card h2{margin:0 0 8px;font-size:20px}.reference-card p,.reference-card li{color:#5f5e57}.format-sample{margin:10px 0;padding:14px 16px;border-radius:10px;background:#f7f4ed}.format-sample strong{display:block;margin-bottom:4px;color:var(--ink);font-size:12px}.format-sample--wrong{background:var(--accent-soft)}.rule-table{width:100%;border-collapse:collapse}.rule-table th,.rule-table td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.rule-table th{color:var(--muted);font-size:12px}.notice{padding:14px 16px;border-radius:10px;background:var(--warning-soft);color:#6e501f}@media(max-width:720px){.reference-grid{grid-template-columns:1fr}.reference-card--wide{grid-column:auto}.rule-table{display:block;overflow:auto}}
 </style>
-</head>
-<body>
+{% endblock %}
 
-<div class="topbar">
-  <span class="title">格式参考</span>
-  <div>
-    <a href="/">← 返回检测</a>
+{% block body %}
+<main class="page-shell page-shell--narrow">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">FORMAT REFERENCE</p>
+      <h1 class="page-title">当前规则的格式参考</h1>
+      <p class="lede">展示容易混淆的写法，便于人工复核；它不是完整规范，也不替代正式文件。</p>
+    </div>
+    <div class="page-actions"><a class="btn btn--secondary" href="{{ url_for('index', profile=profile.id if profile else none) }}">使用这套规则检查</a></div>
+  </header>
+
+  {% if profile %}
+  <section class="panel profile-strip">
+    <div><strong>{{ profile.name }}</strong><p>{{ profile.document_type }} · {{ profile.source }} · {{ profile.rule_count }} 条规则</p></div>
+    <a class="btn btn--ghost" href="{{ url_for('editor', profile=profile.id) }}">查看规则</a>
+  </section>
+  {% endif %}
+
+  <nav class="reference-nav" aria-label="本页目录">
+    <a href="#typography">文字与段落</a><a href="#figures">图表编号</a><a href="#references">参考文献</a><a href="#limits">检查边界</a>
+  </nav>
+
+  <div class="reference-grid">
+    <section class="reference-card" id="typography">
+      <h2>文字与段落</h2>
+      <div class="format-sample"><strong>正文示例</strong><span style="font-family:'SimSun','Songti SC',serif;font-size:{{ body_size }}pt">正文使用{{ body_size_name }}{{ body_font }}（{{ body_size }}pt），当前规则行距为 {{ line_spacing }}pt。</span></div>
+      <div class="format-sample"><strong>一级标题示例</strong><span style="font-family:'SimSun','Songti SC',serif;font-size:{{ title1_size }}pt;font-weight:700">1 研究背景</span></div>
+      <div class="format-sample"><strong>二级标题示例</strong><span style="font-family:'SimSun','Songti SC',serif;font-size:{{ title2_size }}pt;font-weight:700">1.1 问题提出</span></div>
+      <p>Word 中的字体可能来自直接设置，也可能继承自样式。复杂模板仍应回到 Word 的“样式”面板核对。</p>
+    </section>
+
+    <section class="reference-card" id="figures">
+      <h2>图表编号</h2>
+      <p>当前示例采用“章号—序号”的写法。只有所选模板启用对应检查时，报告才会提示这类问题。</p>
+      <div class="format-sample"><strong>参考写法</strong>图3-1 用户增长趋势图<br>表2-1 样本基本信息</div>
+      <div class="format-sample format-sample--wrong"><strong>容易混用</strong>图3.1、图3-01、图 3—1</div>
+      <p>{% if fig_notes %}{{ fig_notes }}{% else %}编号规则以当前正式规范为准。{% endif %}</p>
+    </section>
+
+    <section class="reference-card reference-card--wide" id="references">
+      <h2>参考文献常见写法</h2>
+      <p>以下结构用于快速辨认字段是否齐全。著录细节必须以所选模板与正式规范为准。</p>
+      <table class="rule-table">
+        <thead><tr><th>类型</th><th>标识</th><th>结构示例</th></tr></thead>
+        <tbody>
+          <tr><td>期刊论文</td><td>[J]</td><td>作者. 题名[J]. 刊名, 年, 卷(期): 页码.</td></tr>
+          <tr><td>专著</td><td>[M]</td><td>作者. 书名[M]. 出版地: 出版社, 年.</td></tr>
+          <tr><td>学位论文</td><td>[D]</td><td>作者. 题名[D]. 保存地: 保存单位, 年.</td></tr>
+          <tr><td>网络文献</td><td>[EB/OL]</td><td>作者. 题名[EB/OL]. (发布日期)[引用日期]. URL.</td></tr>
+          <tr><td>报告</td><td>[R]</td><td>作者. 题名[R]. 出版地: 出版者, 年.</td></tr>
+        </tbody>
+      </table>
+      <p class="small-note">当前模板参数：条目 {{ ref_entry_size_name }}{{ ref_entry_font }}（{{ ref_entry_size }}pt），行距 {{ ref_spacing }}pt；数量阈值 {{ ref_min }} 篇，外文 {{ ref_foreign_min }} 篇。阈值只有在模板启用参考文献检查时生效。</p>
+    </section>
+
+    <section class="reference-card reference-card--wide" id="limits">
+      <h2>检查边界</h2>
+      <div class="notice">工具能发现的是“规则明确、Word 结构可读取”的问题。版面观感、图像质量、论证逻辑、学术规范与最终合规结论仍需人工确认。</div>
+    </section>
   </div>
-</div>
-
-<div class="container">
-  <h1>毕业设计格式参考</h1>
-  <p class="subtitle">基于当前加载的格式规范 · GB/T 7714 参考文献标准</p>
-
-  <div class="nav">
-    <a class="toc-link" href="#figures">一、图片编号</a>
-    <a class="toc-link" href="#footnotes">二、脚注格式</a>
-    <a class="toc-link" href="#references">三、参考文献</a>
-  </div>
-
-  <!-- ===== 一、图片编号 ===== -->
-  <div class="section" id="figures">
-    <h2>一、图片编号格式</h2>
-
-    <h3>1. 单张图片</h3>
-    <p>图片编号格式为「图X-Y」，X 为章号，Y 为该章内的图序号。图题注居中，{{ caption_size_name }}{{ caption_font }}（{{ caption_size }}pt）。</p>
-
-    <div class="subfig-demo" style="justify-content: center;">
-      <div class="subfig-item" style="max-width: 320px;">
-        <div class="subfig-placeholder" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);">
-          <span class="subfig-icon">[图片]</span>
-          <span class="subfig-label">用户增长趋势图</span>
-        </div>
-        <p class="subfig-caption">图3-1 短视频平台用户增长趋势图</p>
-      </div>
-    </div>
-
-    <div class="example-box">
-      <div class="label">常见错误</div>
-      <div class="code wrong">图3.1 短视频平台用户增长趋势图</div>
-      <div class="code wrong">图3-01 短视频平台用户增长趋势图</div>
-      <div class="note"><strong>错误原因：</strong>章号和图序号之间应用短横线「-」连接，不用点号「.」，序号不补零。</div>
-    </div>
-
-    <h3>2. 同一内容的多张子图</h3>
-    <p>当同一内容有两张或以上图片时，使用子编号：在标题末尾加小写字母（a）（b），用中文括号。图序号不因子编号而增加。</p>
-
-    <div class="subfig-demo">
-      <div class="subfig-item">
-        <div class="subfig-placeholder" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
-          <span class="subfig-icon">[图片]</span>
-          <span class="subfig-label">美食类封面</span>
-        </div>
-        <p class="subfig-caption">图2-1 短视频封面设计示例（a）</p>
-      </div>
-      <div class="subfig-item">
-        <div class="subfig-placeholder" style="background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);">
-          <span class="subfig-icon">[图片]</span>
-          <span class="subfig-label">穿搭类封面</span>
-        </div>
-        <p class="subfig-caption">图2-1 短视频封面设计示例（b）</p>
-      </div>
-    </div>
-
-    <div class="example-box">
-      <div class="label">常见错误</div>
-      <div class="code wrong">图2-1（a）短视频封面设计示例</div>
-      <div class="code wrong">图2-1(a) 短视频封面设计示例</div>
-      <div class="code wrong">图2-1A 短视频封面设计示例</div>
-      <div class="note"><strong>错误原因：</strong>（a）（b）应放在标题末尾而非紧跟编号；必须使用中文括号（）而非英文括号()；必须使用小写字母而非大写。</div>
-    </div>
-
-    <h3>3. 子图编号规则</h3>
-    <ul class="rule-list">
-      <li>子编号从 <strong>（a）</strong>开始，连续递增：（a）→（b）→（c）...</li>
-      <li>（a）（b）放在标题文字<strong>末尾</strong>，不是紧跟图号</li>
-      <li>至少有 2 张子图时才使用子编号，单独一张图不需要</li>
-      <li>子图编号不影响主图序号：图2-1（a）（b）之后，下一张整图是图2-2</li>
-      <li>每个子图都应有独立的图题注，说明该子图内容</li>
-      {% if fig_notes %}<li><strong>本校补充：</strong>{{ fig_notes }}</li>{% endif %}
-    </ul>
-  </div>
-
-  <!-- ===== 二、脚注格式 ===== -->
-  <div class="section" id="footnotes">
-    <h2>二、脚注格式</h2>
-
-    <h3>1. 脚注的基本要求</h3>
-    <ul class="rule-list">
-      <li>脚注编号按正文中首次引用的顺序排列，从 <strong>[1]</strong> 开始</li>
-      <li>同一文献多次引用时，使用<strong>同一编号</strong>，不重复编号</li>
-      <li>脚注编号必须与文末参考文献列表<strong>顺序一致</strong>：脚注 [1] = 参考文献 [1]</li>
-      <li>脚注格式：{{ footnote_size_name }}{{ footnote_font }}（{{ footnote_size }}pt），英文用 <strong>Times New Roman {{ footnote_size_name }}（{{ footnote_size }}pt）</strong>，单倍行距</li>
-      {% if fn_notes %}<li><strong>本校补充：</strong>{{ fn_notes }}</li>{% endif %}
-    </ul>
-
-    <h3>2. 正文中的脚注引用</h3>
-    <div class="example-box">
-      <div class="label">正确示例</div>
-      <div class="code correct">
-        短视频内容开始垂直细分，穿搭类视频便是短视频内容细分的产物[1]。男装市场规模持续扩大[2]，数字经济下的服装行业也经历着变革[3]。
-      </div>
-    </div>
-
-    <div class="example-box">
-      <div class="label">常见错误</div>
-      <div class="code wrong">
-        短视频内容开始垂直细分[3]。男装市场规模持续扩大[1]，服装行业经历变革[2]。
-      </div>
-      <div class="note"><strong>错误原因：</strong>脚注编号必须按正文中首次出现的顺序递增。先出现的引用编号更小，不能跳号或乱序。同时脚注顺序要和文末参考文献列表的顺序一致。</div>
-    </div>
-
-    <h3>3. 脚注内容示例（GB/T 7714 顺序编码制）</h3>
-    <div class="example-box">
-      <div class="label">正确示例</div>
-      <div class="code correct">
-        [1] 高彦梅.数字经济时代服装企业商业模式创新研究[J].纺织报告,2025,44(08):46-48.<br>
-        [2] 艾媒咨询.2006-2025年中国限额以上单位服装商品零售额[R].2025.<br>
-        [3] Smith J. Digital Fashion Marketing[M]. London: Routledge, 2024.
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== 三、参考文献 ===== -->
-  <div class="section" id="references">
-    <h2>三、参考文献格式（GB/T 7714）</h2>
-
-    <p style="margin-bottom:15px;">参考文献采用 GB/T 7714 顺序编码制，编号用方括号 [1][2][3]... 标注。格式为{{ ref_entry_size_name }}{{ ref_entry_font }}（{{ ref_entry_size }}pt），行距固定值 {{ ref_spacing }}pt。要求不少于 <strong>{{ ref_min }} 篇</strong>，其中外文文献不少于 <strong>{{ ref_foreign_min }} 篇</strong>。</p>
-
-    <h3>1. 中文期刊论文 [J]</h3>
-    <div class="example-box">
-      <div class="label">格式</div>
-      <div class="code">[序号] 作者.题名[J].刊名,出版年,卷(期):起止页码.</div>
-    </div>
-    <div class="example-box">
-      <div class="label">正确示例</div>
-      <div class="code correct">[1] 高彦梅.数字经济时代服装企业商业模式创新研究[J].纺织报告,2025,44(08):46-48.</div>
-    </div>
-    <div class="example-box">
-      <div class="label">常见错误</div>
-      <div class="code wrong">[1] 高彦梅.数字经济时代服装企业商业模式创新研究.纺织报告,2025,44(08):46-48.</div>
-      <div class="note"><strong>错误原因：</strong>缺少文献类型标识 [J]。期刊论文必须标注 [J]。</div>
-    </div>
-
-    <h3>2. 中文专著 [M]</h3>
-    <div class="example-box">
-      <div class="label">格式</div>
-      <div class="code">[序号] 作者.书名[M].出版地:出版社,出版年:引用页码.</div>
-    </div>
-    <div class="example-box">
-      <div class="label">正确示例</div>
-      <div class="code correct">[5] 彭兰.新媒体用户研究[M].北京:中国人民大学出版社,2023:56-78.</div>
-    </div>
-
-    <h3>3. 学位论文 [D]</h3>
-    <div class="example-box">
-      <div class="label">格式</div>
-      <div class="code">[序号] 作者.题名[D].保存地:保存单位,年份.</div>
-    </div>
-    <div class="example-box">
-      <div class="label">正确示例</div>
-      <div class="code correct">[8] 张三.短视频平台内容生态研究[D].南昌:江西师范大学,2024.</div>
-    </div>
-
-    <h3>4. 网络文献 [EB/OL]</h3>
-    <div class="example-box">
-      <div class="label">格式</div>
-      <div class="code">[序号] 作者.题名[EB/OL].(发布日期)[引用日期].URL.</div>
-    </div>
-    <div class="example-box">
-      <div class="label">正确示例</div>
-      <div class="code correct">[12] 中国互联网络信息中心.第53次中国互联网络发展状况统计报告[EB/OL].(2024-03-22)[2025-05-01].https://www.cnnic.net.cn/.</div>
-    </div>
-    <div class="example-box">
-      <div class="label">常见错误</div>
-      <div class="code wrong">[12] 中国互联网络发展状况统计报告 https://www.cnnic.net.cn/</div>
-      <div class="note"><strong>错误原因：</strong>缺少 [EB/OL] 标识、发布日期和引用日期。网络文献必须标注完整的可追溯信息。</div>
-    </div>
-
-    <h3>5. 英文期刊论文</h3>
-    <div class="example-box">
-      <div class="label">格式</div>
-      <div class="code">[序号] Author A, Author B. Title[J]. Journal Name, Year, Vol(No): Pages.</div>
-    </div>
-    <div class="example-box">
-      <div class="label">正确示例</div>
-      <div class="code correct">[3] Smith J, Wang L. Social media marketing in fashion industry[J]. Journal of Fashion Technology, 2024, 15(3): 45-52.</div>
-    </div>
-
-    <h3>6. 英文专著</h3>
-    <div class="example-box">
-      <div class="label">格式</div>
-      <div class="code">[序号] Author. Title[M]. Place: Publisher, Year: Pages.</div>
-    </div>
-    <div class="example-box">
-      <div class="label">正确示例</div>
-      <div class="code correct">[15] Kaplan A M, Haenlein M. Digital Marketing[M]. New York: McGraw-Hill, 2023: 112-135.</div>
-    </div>
-
-    <h3>7. 格式速查表</h3>
-    <table class="table-compare">
-      <thead>
-        <tr>
-          <th width="15%">文献类型</th>
-          <th width="10%">标识</th>
-          <th width="35%">正确格式</th>
-          <th width="40%">常见错误</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>期刊论文</td>
-          <td>[J]</td>
-          <td class="col-correct">作者.题名[J].刊名,年,卷(期):页码.</td>
-          <td class="col-wrong">漏标 [J]；缺少卷期号</td>
-        </tr>
-        <tr>
-          <td>专著</td>
-          <td>[M]</td>
-          <td class="col-correct">作者.书名[M].出版地:出版社,年:页码.</td>
-          <td class="col-wrong">漏标 [M]；缺少出版地</td>
-        </tr>
-        <tr>
-          <td>学位论文</td>
-          <td>[D]</td>
-          <td class="col-correct">作者.题名[D].保存地:保存单位,年.</td>
-          <td class="col-wrong">漏标 [D]；缺少保存单位</td>
-        </tr>
-        <tr>
-          <td>网络文献</td>
-          <td>[EB/OL]</td>
-          <td class="col-correct">作者.题名[EB/OL].(发布日)[引用日期].URL.</td>
-          <td class="col-wrong">漏标 [EB/OL]；缺日期或URL</td>
-        </tr>
-        <tr>
-          <td>报告</td>
-          <td>[R]</td>
-          <td class="col-correct">作者.题名[R].出版地:出版者,年.</td>
-          <td class="col-wrong">漏标 [R]</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="note">
-      <strong>关键规则：</strong>① 每条参考文献必须有文献类型标识；② 编号格式统一使用 [序号]；③ 作者超过 3 人写前 3 人后加"等"或"et al"；④ 英文作者姓在前名缩写在后，如 Smith J。
-    </div>
-  </div>
-
-</div>
-
-<!-- 署名 -->
-{% if show_footer %}
-<div style="max-width:960px;margin:0 auto 30px;padding:0 20px;">
-  <div style="text-align:center;padding-top:20px;border-top:1px solid #eee;">
-    <p style="font-size:13px;color:#999;margin-bottom:10px;">Made with ❤ by <strong style="color:#666;">xigua</strong></p>
-    <p style="font-size:12px;color:#bbb;margin-bottom:8px;">觉得好用？请我喝杯奶茶 ☕</p>
-    <img src="/static/qr_placeholder.png" alt="打赏二维码" style="width:120px;height:120px;border-radius:8px;border:1px solid #eee;">
-  </div>
-</div>
-{% endif %}
-
-</body>
-</html>
+</main>
+{% endblock %}

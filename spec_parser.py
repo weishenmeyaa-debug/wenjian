@@ -1,6 +1,6 @@
 """
 规范文件解析模块
-从毕业设计格式指导手册中提取格式规则，输出 JSON
+从 Word 格式规范中有限提取规则草稿，输出 JSON
 """
 
 import re
@@ -293,9 +293,7 @@ def parse_spec_docx(filepath):
 
         # --- 页眉 ---
         if "页眉字样为" in text:
-            # 提取引号中的页眉文字
-            import re
-            m = re.search(r"[「"\"](.*?)[」\""]", text)
+            m = re.search(r'[「“”"](.*?)[」“”"]', text)
             header_val = m.group(1) if m else "XXX大学毕业设计（论文）"
             prose_rules.append({
                 "section": "page_header",

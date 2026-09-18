@@ -1,169 +1,92 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>格式检查报告</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, "Microsoft YaHei", "微软雅黑", sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
-.topbar { background: #fff; padding: 12px 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
-.topbar a { color: #1976d2; text-decoration: none; font-size: 14px; }
-.topbar a:hover { text-decoration: underline; }
-.topbar .title { font-size: 16px; font-weight: 500; }
-.report { max-width: 1100px; margin: 0 auto; padding: 20px; }
-header { background: #fff; padding: 30px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-header h1 { font-size: 24px; margin-bottom: 8px; }
-.meta { color: #888; font-size: 14px; margin-bottom: 15px; }
-.summary-bar { display: flex; gap: 10px; flex-wrap: wrap; }
-.badge { padding: 4px 12px; border-radius: 4px; font-size: 13px; font-weight: 500; }
-.badge.error { background: #fee; color: #c33; }
-.badge.warning { background: #fff8e1; color: #e6a700; }
-.badge.info { background: #e3f2fd; color: #1565c0; }
-.badge.count { background: #f0f0f0; color: #666; }
-.document { background: #fff; padding: 25px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.document h2 { font-size: 18px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #eee; }
-.document h3 { font-size: 15px; margin: 18px 0 10px; color: #555; }
-.doc-summary { display: flex; gap: 10px; margin-bottom: 15px; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 15px; }
-thead { background: #fafafa; }
-th { text-align: left; padding: 8px 10px; border-bottom: 2px solid #ddd; font-weight: 500; color: #666; }
-td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
-tr:hover { background: #f9f9f9; }
-.expected { color: #2e7d32; }
-.actual { color: #c62828; }
-.tag { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
-.content-cell { font-size: 12px; color: #555; max-width: 0; overflow: hidden; }
-.content-preview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; line-height: 1.5; background: #fff8e1; padding: 3px 6px; border-radius: 3px; border-left: 3px solid #ffa726; }
-.no-content { color: #ccc; }
-.all-good { color: #2e7d32; background: #e8f5e9; padding: 15px; border-radius: 4px; text-align: center; font-size: 15px; }
-</style>
-</head>
-<body>
+{% extends "base.html" %}
+{% set active_page = "check" %}
+{% block title %}检查结果 · 文检{% endblock %}
 
-<div class="topbar">
-  <span class="title">格式检查报告</span>
-  <div>
-    <span style="font-size:12px;color:#e65100;background:#fff3e0;padding:4px 10px;border-radius:4px;margin-right:12px;">⚠ 检测结果仅供参考，请以指导老师意见为准</span>
-    <a href="/">← 返回继续检测</a>
-    &nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="/download/{{ report_id }}">下载报告</a>
-  </div>
-</div>
-
-<div class="report">
-  <header>
-    <h1>毕业设计格式检查报告</h1>
-    <div class="summary-bar">
-      {% set total_errors = results | map(attribute='summary.errors') | sum %}
-      {% set total_warnings = results | map(attribute='summary.warnings') | sum %}
-      {% set total_infos = results | map(attribute='summary.infos') | sum %}
-      <span class="badge error">错误 {{ total_errors }}</span>
-      <span class="badge warning">警告 {{ total_warnings }}</span>
-      <span class="badge info">提示 {{ total_infos }}</span>
-      <span class="badge count">共 {{ results | length }} 个文件</span>
+{% block body %}
+{% set total_errors = results | map(attribute='summary.errors') | sum %}
+{% set total_warnings = results | map(attribute='summary.warnings') | sum %}
+{% set total_infos = results | map(attribute='summary.infos') | sum %}
+<main class="page-shell page-shell--narrow">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">REVIEW COMPLETE</p>
+      <h1 class="page-title">检查结果</h1>
+      <p class="lede">使用“{{ profile.name if profile else '未命名规则' }}”检查了 {{ results | length }} 个文件。请逐项复核后再修改原文。</p>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn--secondary" href="{{ url_for('index', profile=profile.id if profile else '') }}">继续检查</a>
+      <a class="btn btn--primary" href="{{ url_for('download_report', report_id=report_id) }}">下载报告</a>
     </div>
   </header>
 
+  <section class="stats" aria-label="检查结果汇总">
+    <div class="stat stat--error"><span>必须修改</span><strong>{{ total_errors }}</strong></div>
+    <div class="stat stat--warning"><span>建议复核</span><strong>{{ total_warnings }}</strong></div>
+    <div class="stat stat--info"><span>人工确认</span><strong>{{ total_infos }}</strong></div>
+    <div class="stat"><span>检查文件</span><strong>{{ results | length }}</strong></div>
+  </section>
+
+  <div class="filter-bar" role="group" aria-label="筛选问题">
+    <button class="filter-btn active" type="button" data-filter="all">全部问题</button>
+    <button class="filter-btn" type="button" data-filter="error">必须修改</button>
+    <button class="filter-btn" type="button" data-filter="warning">建议复核</button>
+    <button class="filter-btn" type="button" data-filter="info">人工确认</button>
+  </div>
+
   {% for result in results %}
-  <section class="document">
-    <h2>{{ result.filename }}</h2>
-
-    {% if result.error is defined %}
-    <p style="color:#c33; background:#fee; padding:10px; border-radius:4px;">解析失败：{{ result.error }}</p>
-    {% endif %}
-
-    <div class="doc-summary">
-      <span class="badge error">错误 {{ result.summary.get('errors', 0) }}</span>
-      <span class="badge warning">警告 {{ result.summary.get('warnings', 0) }}</span>
-      <span class="badge info">提示 {{ result.summary.get('infos', 0) }}</span>
+  <article class="document-card">
+    <div class="document-card__head">
+      <h2>{{ result.filename }}</h2>
+      <div class="pill-row">
+        <span class="pill pill--error">必须修改 {{ result.summary.get('errors', 0) }}</span>
+        <span class="pill pill--warning">建议复核 {{ result.summary.get('warnings', 0) }}</span>
+        <span class="pill pill--info">人工确认 {{ result.summary.get('infos', 0) }}</span>
+      </div>
     </div>
 
-    {% set errors = result.issues | selectattr('severity.value', 'equalto', '错误') | list %}
-    {% set warnings = result.issues | selectattr('severity.value', 'equalto', '警告') | list %}
-    {% set infos = result.issues | selectattr('severity.value', 'equalto', '提示') | list %}
-
-    {% if errors %}
-    <h3>错误（必须修改）</h3>
-    <table>
-      <thead><tr><th width="12%">位置</th><th width="8%">分类</th><th width="20%">问题描述</th><th width="15%">正确格式</th><th width="15%">实际格式</th><th width="30%">出错原文</th></tr></thead>
-      <tbody>
-        {% for issue in errors %}
-        <tr>
-          <td>{{ issue.location }}</td>
-          <td><span class="tag">{{ issue.category }}</span></td>
-          <td>{{ issue.description }}</td>
-          <td class="expected">{{ issue.expected }}</td>
-          <td class="actual">{{ issue.actual }}</td>
-          <td class="content-cell">{% if issue.content %}<span class="content-preview">{{ issue.content }}</span>{% else %}<span class="no-content">—</span>{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
-
-    {% if warnings %}
-    <h3>警告（建议修改）</h3>
-    <table>
-      <thead><tr><th width="12%">位置</th><th width="8%">分类</th><th width="20%">问题描述</th><th width="15%">正确格式</th><th width="15%">实际格式</th><th width="30%">出错原文</th></tr></thead>
-      <tbody>
-        {% for issue in warnings %}
-        <tr>
-          <td>{{ issue.location }}</td>
-          <td><span class="tag">{{ issue.category }}</span></td>
-          <td>{{ issue.description }}</td>
-          <td class="expected">{{ issue.expected }}</td>
-          <td class="actual">{{ issue.actual }}</td>
-          <td class="content-cell">{% if issue.content %}<span class="content-preview">{{ issue.content }}</span>{% else %}<span class="no-content">—</span>{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
-
-    {% if infos %}
-    <h3>提示（仅供参考）</h3>
-    <table>
-      <thead><tr><th width="12%">位置</th><th width="8%">分类</th><th width="20%">问题描述</th><th width="15%">正确格式</th><th width="15%">实际格式</th><th width="30%">出错原文</th></tr></thead>
-      <tbody>
-        {% for issue in infos %}
-        <tr>
-          <td>{{ issue.location }}</td>
-          <td><span class="tag">{{ issue.category }}</span></td>
-          <td>{{ issue.description }}</td>
-          <td class="expected">{{ issue.expected }}</td>
-          <td class="actual">{{ issue.actual }}</td>
-          <td class="content-cell">{% if issue.content %}<span class="content-preview">{{ issue.content }}</span>{% else %}<span class="no-content">—</span>{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
-
-    {% if not result.issues %}
-    <p class="all-good">未发现格式问题。</p>
-    {% endif %}
-  </section>
+    {% if result.error is defined %}<p class="parse-error">解析失败：{{ result.error }}</p>{% endif %}
+    {% set groups = [
+      ('error', '必须修改', result.issues | selectattr('severity.value', 'equalto', '错误') | list),
+      ('warning', '建议复核', result.issues | selectattr('severity.value', 'equalto', '警告') | list),
+      ('info', '需要人工确认', result.issues | selectattr('severity.value', 'equalto', '提示') | list)
+    ] %}
+    {% for level, label, issues in groups %}
+      {% if issues %}
+      <section class="issue-section" data-group="{{ level }}">
+        <h3>{{ label }} · {{ issues | length }}</h3>
+        <div class="issue-list">
+          {% for issue in issues %}
+          <article class="issue-card" data-severity="{{ level }}">
+            <div class="issue-meta"><span>{{ issue.category }}</span><span>·</span><span>{{ issue.location }}</span></div>
+            <h4>{{ issue.description }}</h4>
+            <div class="issue-compare">
+              <div><span>规则要求</span><strong style="color:var(--success)">{{ issue.expected }}</strong></div>
+              <div><span>当前情况</span><strong style="color:var(--accent)">{{ issue.actual }}</strong></div>
+            </div>
+            {% if issue.content %}<p class="issue-content">相关原文：{{ issue.content }}</p>{% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+    {% endfor %}
+    {% if not result.issues and result.error is not defined %}<p class="empty-good">在当前规则和可识别范围内，没有发现格式问题。仍建议进行人工复核。</p>{% endif %}
+  </article>
   {% endfor %}
-</div>
 
-<!-- 免责声明 -->
-<div style="max-width:1100px;margin:0 auto 20px;padding:0 20px;">
-  <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:12px 15px;font-size:12px;color:#795548;line-height:1.8;">
-    <strong>免责声明：</strong>本报告仅供参考，不保证100%准确。本工具会自动跳过人名、签名等个人隐私信息的检测。本工具采用 CC BY-NC-SA 4.0 许可，禁止商业用途。
-  </div>
-</div>
+  <p class="small-note" style="margin-top:18px">报告仅在当前程序运行期间短期保留。关闭程序后，下载链接会失效。</p>
+</main>
+{% endblock %}
 
-<!-- 署名 -->
-{% if show_footer %}
-<div style="max-width:960px;margin:0 auto 30px;padding:0 20px;">
-  <div style="text-align:center;padding-top:20px;border-top:1px solid #eee;">
-    <p style="font-size:13px;color:#999;margin-bottom:10px;">Made with ❤ by <strong style="color:#666;">xigua</strong></p>
-    <p style="font-size:12px;color:#bbb;margin-bottom:8px;">觉得好用？请我喝杯奶茶 ☕</p>
-    <img src="/static/qr_placeholder.png" alt="打赏二维码" style="width:120px;height:120px;border-radius:8px;border:1px solid #eee;">
-  </div>
-</div>
-{% endif %}
-
-</body>
-</html>
+{% block scripts %}
+<script>
+const filterButtons = [...document.querySelectorAll('.filter-btn')];
+filterButtons.forEach(button => button.addEventListener('click', () => {
+  filterButtons.forEach(item => item.classList.toggle('active', item === button));
+  const filter = button.dataset.filter;
+  document.querySelectorAll('.issue-section').forEach(section => {
+    section.hidden = filter !== 'all' && section.dataset.group !== filter;
+  });
+}));
+</script>
+{% endblock %}

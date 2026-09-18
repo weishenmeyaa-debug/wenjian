@@ -1,6 +1,4 @@
-"""
-毕业设计格式检测核心模块
-"""
+"""文检的 Word 文档格式检查核心。"""
 
 import re
 import json
@@ -9,6 +7,13 @@ from enum import Enum
 from docx import Document
 from docx.shared import Pt, Emu
 from docx.oxml.ns import qn
+
+
+DEFAULT_ENABLED_CHECKS = {
+    "font", "alignment", "line_spacing", "structure", "cover",
+    "title_numbering", "figure_table_numbering", "references",
+    "page_setup", "header", "abstract", "word_count", "footnotes",
+}
 
 
 class Severity(Enum):
@@ -124,9 +129,8 @@ def format_expected(font_name, pt_val, bold=None):
     return result
 
 
-def get_run_font(run):
-    """获取 run 的字体名，根据内容类型智能选择东亚/西文字体"""
-    rPr = run._element.rPr
+def _font_name_from_rpr(rPr, text=""):
+    """从一层字符属性中解析适用于当前文本的字体。"""
     if rPr is not None:
         rFonts = rPr.find(qn('w:rFonts'))
         if rFonts is not None:
@@ -137,7 +141,7 @@ def get_run_font(run):
             # Segoe UI 系列是 Word 的 emoji/符号字体，不应作为文档正文字体
             emoji_fonts = {"Segoe UI Emoji", "Segoe UI Symbol", "Segoe UI"}
 
-            has_chinese = bool(re.search(r'[一-鿿]', run.text or ''))
+            has_chinese = bool(re.search(r'[一-鿿]', text or ''))
 
             # 处理 eastAsia 或 ascii 为 emoji 字体的情况
             ea_is_emoji = ea in emoji_fonts
@@ -166,14 +170,50 @@ def get_run_font(run):
                 return ea
             if ascii_font:
                 return ascii_font
-    return run.font.name
+    return None
+
+
+def _style_chain(style):
+    """按当前样式到基样式的顺序迭代，避免循环引用。"""
+    seen = set()
+    while style is not None and id(style) not in seen:
+        seen.add(id(style))
+        yield style
+        style = getattr(style, "base_style", None)
+
+
+def get_run_font(run):
+    """解析直接格式和样式继承后的有效字体名。"""
+    direct = _font_name_from_rpr(run._element.rPr, run.text)
+    if direct or run.font.name:
+        return direct or run.font.name
+
+    paragraph = getattr(run, "_parent", None)
+    styles = [getattr(run, "style", None), getattr(paragraph, "style", None)]
+    for style in styles:
+        for candidate in _style_chain(style):
+            font_name = _font_name_from_rpr(candidate.element.rPr, run.text)
+            if font_name or candidate.font.name:
+                return font_name or candidate.font.name
+    return None
 
 
 def get_run_font_info(run):
-    """获取 run 的完整字体信息"""
+    """解析直接格式和样式继承后的字体、字号与粗体。"""
     font_name = get_run_font(run)
-    size_pt = emu_to_pt(run.font.size) if run.font.size else None
+    size = run.font.size
     bold = run.font.bold
+    paragraph = getattr(run, "_parent", None)
+    styles = [getattr(run, "style", None), getattr(paragraph, "style", None)]
+    for style in styles:
+        for candidate in _style_chain(style):
+            if size is None and candidate.font.size is not None:
+                size = candidate.font.size
+            if bold is None and candidate.font.bold is not None:
+                bold = candidate.font.bold
+        if size is not None and bold is not None:
+            break
+    size_pt = emu_to_pt(size) if size else None
     return font_name, size_pt, bold
 
 
@@ -226,10 +266,20 @@ def load_rules_from_json(json_path):
     从 JSON 规范文件加载规则，返回与硬编码 rules_dict 同格式的字典
     """
     with open(json_path, "r", encoding="utf-8") as f:
-        raw_rules = json.load(f)
+        raw = json.load(f)
+
+    if isinstance(raw, dict):
+        raw_rules = raw.get("rules", [])
+        profile = raw.get("profile", {})
+    else:
+        raw_rules = raw
+        profile = {}
 
     rules = {}
-    meta = {}
+    meta = {
+        "profile": profile,
+        "enabled_checks": profile.get("enabled_checks"),
+    }
 
     for r in raw_rules:
         section = r["section"]
@@ -251,11 +301,11 @@ def load_rules_from_json(json_path):
 
         # 行间距规则
         if r.get("line_spacing_pt"):
-            rules[section] = {
+            rules.setdefault(section, {"label": r.get("label", section)}).update({
                 "line_spacing_pt": r["line_spacing_pt"],
                 "line_spacing_type": r.get("line_spacing_type", "固定值"),
                 "label": r.get("label", section),
-            }
+            })
 
         # 参考文献数量
         if section == "reference_count":
@@ -464,13 +514,16 @@ def check_font(paragraph_class, para, issues, para_index, rules=None):
         "appendix_title": {"font": "宋体", "size": 15, "bold": True, "label": "附录标题"},
     }
     # 如果传入了外部规则，覆盖默认
-    check_rules = {**default_rules, **(rules or {})}
+    check_rules = default_rules if rules is None else rules
 
     if paragraph_class not in check_rules:
         return
 
     rule = check_rules[paragraph_class]
     label = rule["label"]
+    expected_font = rule.get("font")
+    expected_size = rule.get("size")
+    expected_bold = rule.get("bold")
 
     # 封面题目和声明书为模板固定内容，不检测格式
     if paragraph_class in ("cover_title", "declaration_title", "declaration_body"):
@@ -492,12 +545,12 @@ def check_font(paragraph_class, para, issues, para_index, rules=None):
         loc = f"{location} ({label})" + (f" {pos_label}" if pos_label else "")
 
         # 字体检测
-        # font=None 表示用户未显式设置字体，Word 会使用默认字体，不报错
-        if rule["font"] and info["font"]:
-            font_match = rule["font"] in (info["font"] or "")
-            if rule["font"] == "Arial Black":
+        # 已尝试解析直接格式和样式继承；仍为 None 时不能可靠判错。
+        if expected_font and info["font"]:
+            font_match = expected_font in (info["font"] or "")
+            if expected_font == "Arial Black":
                 font_match = "Arial" in (info["font"] or "") and "Black" in (info["font"] or "")
-            if rule["font"] == "Times New Roman":
+            if expected_font == "Times New Roman":
                 font_match = "Times" in (info["font"] or "")
 
             if not font_match:
@@ -508,7 +561,7 @@ def check_font(paragraph_class, para, issues, para_index, rules=None):
 
                 # 宋体变体（汉仪宋体、方正宋体等）视为宋体
                 song_ti_variants = {"HYShuSongErKW", "FZShuSong", "Founder SS", "SimSun", "NSimSun"}
-                if rule["font"] == "宋体" and any(v in (info["font"] or "") for v in song_ti_variants):
+                if expected_font == "宋体" and any(v in (info["font"] or "") for v in song_ti_variants):
                     continue
 
                 # 参考文献、图/表题注中的英文内容使用 Times New Roman 是正常的
@@ -519,7 +572,7 @@ def check_font(paragraph_class, para, issues, para_index, rules=None):
                     if not has_chinese:
                         continue
 
-                expected_desc = format_expected(rule["font"], rule["size"])
+                expected_desc = format_expected(expected_font, expected_size)
                 issues.append(Issue(
                     location=loc,
                     severity=Severity.ERROR,
@@ -531,9 +584,9 @@ def check_font(paragraph_class, para, issues, para_index, rules=None):
                 ))
 
         # 字号检测（允许 0.5pt 误差）
-        if rule["size"] and info["size"]:
-            if abs(info["size"] - rule["size"]) > 0.5:
-                expected_desc = format_expected(rule.get("font"), rule["size"])
+        if expected_size and info["size"]:
+            if abs(info["size"] - expected_size) > 0.5:
+                expected_desc = format_expected(expected_font, expected_size)
                 actual_desc = format_font_size(info["font"], info["size"])
                 issues.append(Issue(
                     location=loc,
@@ -546,14 +599,14 @@ def check_font(paragraph_class, para, issues, para_index, rules=None):
                 ))
 
         # 加粗检测（取所有 run 的一致结果）
-        if rule["bold"] is not None:
+        if expected_bold is not None:
             # 正文分类的大号粗体文字可能是误分类的标题（如目录后的文档大标题），跳过加粗检查
             if paragraph_class == "body_text" and run_infos[0]["size"] and run_infos[0]["size"] >= 14:
                 break
             # 如果任何 run 不符合加粗要求就报
             all_bold = all(i["bold"] for i in run_infos)
             none_bold = all(not i["bold"] for i in run_infos)
-            if rule["bold"] and not all_bold:
+            if expected_bold and not all_bold:
                 issues.append(Issue(
                     location=f"{location} ({label})",
                     severity=Severity.WARNING,
@@ -564,7 +617,7 @@ def check_font(paragraph_class, para, issues, para_index, rules=None):
                     content=para_text
                 ))
                 break  # 加粗是段落级属性，只报一次
-            elif not rule["bold"] and not none_bold:
+            elif not expected_bold and not none_bold:
                 issues.append(Issue(
                     location=f"{location} ({label})",
                     severity=Severity.WARNING,
@@ -586,7 +639,7 @@ def check_alignment(paragraph_class, para, issues, para_index, rules=None):
     if paragraph_class in ("cover_title", "cover_field"):
         return
 
-    rules = {
+    default_alignments = {
         "abstract_zh_title": "居中",
         "abstract_en_title": "居中",
         "toc_title": "居中",
@@ -596,7 +649,12 @@ def check_alignment(paragraph_class, para, issues, para_index, rules=None):
         "appendix_title": "居中",
     }
 
-    if paragraph_class in rules and align and align != rules[paragraph_class]:
+    if rules is None:
+        expected_alignment = default_alignments.get(paragraph_class)
+    else:
+        expected_alignment = (rules.get(paragraph_class) or {}).get("alignment")
+
+    if expected_alignment and align and align != expected_alignment:
         label_map = {
             "abstract_zh_title": "中文摘要标题",
             "abstract_en_title": "英文摘要标题",
@@ -609,8 +667,8 @@ def check_alignment(paragraph_class, para, issues, para_index, rules=None):
             location=f"{location} ({label_map.get(paragraph_class, paragraph_class)})",
             severity=Severity.ERROR,
             category="对齐",
-            description=f"对齐方式应为「{rules[paragraph_class]}」，实际为「{align or '未设置'}」",
-            expected=rules[paragraph_class],
+            description=f"对齐方式应为「{expected_alignment}」，实际为「{align or '未设置'}」",
+            expected=expected_alignment,
             actual=align or "未设置",
             content=para.text.strip()[:80]
         ))
@@ -624,12 +682,15 @@ def check_line_spacing(paragraph_class, para, issues, para_index, rules=None):
     if spacing_pt is None:
         return
 
-    # 从外部规则获取行间距值，默认 22pt
+    # 外部模板只检查明确写入的行距，不继承论文默认值。
     expected_spacing = 22
-    if rules:
-        ls_rule = rules.get("line_spacing_body", {})
-        if ls_rule.get("line_spacing_pt"):
-            expected_spacing = ls_rule["line_spacing_pt"]
+    expected_type = "固定值"
+    if rules is not None:
+        ls_rule = rules.get(paragraph_class) or rules.get("line_spacing_body") or {}
+        if not ls_rule.get("line_spacing_pt"):
+            return
+        expected_spacing = ls_rule["line_spacing_pt"]
+        expected_type = ls_rule.get("line_spacing_type", "固定值")
 
     # 正文和标题
     body_classes = {"body_text", "level1_title", "level2_title", "level3_title",
@@ -638,13 +699,13 @@ def check_line_spacing(paragraph_class, para, issues, para_index, rules=None):
 
     para_text = para.text.strip()[:80]
     if paragraph_class in body_classes:
-        if spacing_type != "固定值":
+        if spacing_type != expected_type:
             issues.append(Issue(
                 location=f"{location} (行间距)",
                 severity=Severity.WARNING,
                 category="行间距",
-                description=f"行间距类型应为「固定值」，实际为「{spacing_type}」",
-                expected=f"固定值 {expected_spacing}磅",
+                description=f"行间距类型应为「{expected_type}」，实际为「{spacing_type}」",
+                expected=f"{expected_type} {expected_spacing}磅",
                 actual=f"{spacing_type} {spacing_pt}磅",
                 content=para_text
             ))
@@ -653,26 +714,29 @@ def check_line_spacing(paragraph_class, para, issues, para_index, rules=None):
                 location=f"{location} (行间距)",
                 severity=Severity.ERROR,
                 category="行间距",
-                description=f"行间距应为「固定值 {expected_spacing}磅」，实际为「{spacing_pt}磅」",
-                expected=f"固定值 {expected_spacing}磅",
+                description=f"行间距应为「{expected_type} {expected_spacing}磅」，实际为「{spacing_pt}磅」",
+                expected=f"{expected_type} {expected_spacing}磅",
                 actual=f"{spacing_type} {spacing_pt}磅",
                 content=para_text
             ))
 
     # 参考文献
     ref_spacing = 18
-    if rules:
+    ref_type = "固定值"
+    if rules is not None:
         ref_rule = rules.get("reference_entry", {})
-        if ref_rule.get("line_spacing_pt"):
-            ref_spacing = ref_rule["line_spacing_pt"]
+        if not ref_rule.get("line_spacing_pt"):
+            return
+        ref_spacing = ref_rule["line_spacing_pt"]
+        ref_type = ref_rule.get("line_spacing_type", "固定值")
     if paragraph_class == "reference_entry":
-        if spacing_type == "固定值" and abs(spacing_pt - ref_spacing) > 1:
+        if spacing_type == ref_type and abs(spacing_pt - ref_spacing) > 1:
             issues.append(Issue(
                 location=f"{location} (行间距)",
                 severity=Severity.ERROR,
                 category="行间距",
-                description=f"参考文献行间距应为「固定值 {ref_spacing}磅」，实际为「{spacing_pt}磅」",
-                expected=f"固定值 {ref_spacing}磅",
+                description=f"参考文献行间距应为「{ref_type} {ref_spacing}磅」，实际为「{spacing_pt}磅」",
+                expected=f"{ref_type} {ref_spacing}磅",
                 actual=f"{spacing_type} {spacing_pt}磅",
                 content=para_text
             ))
@@ -1398,6 +1462,12 @@ def check_document(filepath, rules_json_path=None):
     if rules_json_path:
         rules, meta = load_rules_from_json(rules_json_path)
 
+    enabled_checks = meta.get("enabled_checks")
+    if enabled_checks is None:
+        enabled_checks = DEFAULT_ENABLED_CHECKS
+    else:
+        enabled_checks = set(enabled_checks)
+
     # 分类所有段落
     classified = []
     prev = None
@@ -1413,22 +1483,35 @@ def check_document(filepath, rules_json_path=None):
     for i, (para, cls) in enumerate(zip(paragraphs, classified)):
         if cls is None or not para.text.strip():
             continue
-        check_font(cls, para, result.issues, i, rules)
-        check_alignment(cls, para, result.issues, i, rules)
-        check_line_spacing(cls, para, result.issues, i, rules)
+        if "font" in enabled_checks:
+            check_font(cls, para, result.issues, i, rules)
+        if "alignment" in enabled_checks:
+            check_alignment(cls, para, result.issues, i, rules)
+        if "line_spacing" in enabled_checks:
+            check_line_spacing(cls, para, result.issues, i, rules)
 
     # 全局检测
-    check_structure(paragraphs, classified, result.issues)
-    check_cover_completeness(paragraphs, classified, result.issues)
-    check_title_numbering(paragraphs, classified, result.issues)
-    check_figure_table_numbering(paragraphs, classified, result.issues)
-    check_reference_format(paragraphs, classified, result.issues, meta)
-    check_reference_entry_format(paragraphs, classified, result.issues)
-    check_page_setup(doc, result.issues, meta)
-    check_header(doc, result.issues, meta, classified)
-    check_abstract_content(paragraphs, classified, result.issues, meta)
-    check_word_count(doc, paragraphs, classified, result.issues, meta)
-    check_footnotes(doc, paragraphs, classified, result.issues, meta)
+    if "structure" in enabled_checks:
+        check_structure(paragraphs, classified, result.issues)
+    if "cover" in enabled_checks:
+        check_cover_completeness(paragraphs, classified, result.issues)
+    if "title_numbering" in enabled_checks:
+        check_title_numbering(paragraphs, classified, result.issues)
+    if "figure_table_numbering" in enabled_checks:
+        check_figure_table_numbering(paragraphs, classified, result.issues)
+    if "references" in enabled_checks:
+        check_reference_format(paragraphs, classified, result.issues, meta)
+        check_reference_entry_format(paragraphs, classified, result.issues)
+    if "page_setup" in enabled_checks:
+        check_page_setup(doc, result.issues, meta)
+    if "header" in enabled_checks:
+        check_header(doc, result.issues, meta, classified)
+    if "abstract" in enabled_checks:
+        check_abstract_content(paragraphs, classified, result.issues, meta)
+    if "word_count" in enabled_checks:
+        check_word_count(doc, paragraphs, classified, result.issues, meta)
+    if "footnotes" in enabled_checks:
+        check_footnotes(doc, paragraphs, classified, result.issues, meta)
 
     # 统计
     result.summary = {

@@ -3,35 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>规则编辑器</title>
+<title>规则库 · 文检</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, "Microsoft YaHei", "微软雅黑", sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
-.topbar { background: #fff; padding: 12px 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
-.topbar a { color: #1976d2; text-decoration: none; font-size: 14px; }
+body { font-family: "MiSans", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f3efe6; color: #24251f; line-height: 1.65; font-size:16px; }
+.topbar { background: rgba(248,245,238,.9); padding: 14px max(20px,calc((100% - 1120px)/2)); border-bottom: 1px solid #ddd5c7; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; backdrop-filter:blur(18px); }
+.topbar a { color: #7b2d26; text-decoration: none; font-size: 14px; font-weight:700; }
 .topbar a:hover { text-decoration: underline; }
-.topbar .title { font-size: 16px; font-weight: 500; }
-.container { max-width: 960px; margin: 0 auto; padding: 20px; }
-h1 { font-size: 22px; margin-bottom: 6px; }
-.subtitle { color: #888; font-size: 14px; margin-bottom: 25px; }
+.topbar .title { font-size: 17px; font-weight: 800; }
+.container { max-width: 1020px; margin: 0 auto; padding: 38px 20px 72px; }
+h1 { font-family:"Songti SC","STSong",serif; font-size: 38px; margin-bottom: 8px; }
+.subtitle { color: #706f67; font-size: 16px; margin-bottom: 25px; }
 
 /* 来源指示条 */
-.source-bar { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+.source-bar { background: #fffdf8; border: 1px solid #ddd5c7; border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap:16px; box-shadow:0 12px 36px rgba(57,47,33,.06); }
 .source-bar .label { font-size: 13px; color: #888; }
-.source-bar .name { font-size: 15px; font-weight: 500; color: #333; margin-left: 8px; }
+.source-bar .name { font-size: 16px; font-weight: 750; color: #24251f; margin-left: 8px; }
 .source-bar .actions { display: flex; gap: 8px; }
 
 /* 卡片网格 */
 .rules-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
-.rule-card { background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px 20px; cursor: pointer; transition: all 0.15s; }
-.rule-card:hover { border-color: #90caf9; box-shadow: 0 2px 8px rgba(25,118,210,0.1); }
-.rule-card.editing { border-color: #1976d2; box-shadow: 0 2px 12px rgba(25,118,210,0.15); }
+.rule-card { background: #fffdf8; border: 1px solid #ddd5c7; border-radius: 12px; padding: 17px 20px; transition: all 0.15s; }
+.rule-card:hover { border-color: #b9958a; box-shadow: 0 8px 24px rgba(57,47,33,.08); }
+.rule-card.editing { border-color: #7b2d26; box-shadow: 0 0 0 3px rgba(123,45,38,.08); }
 .rule-card .card-head { display: flex; align-items: center; justify-content: space-between; }
-.rule-card .card-label { font-size: 15px; font-weight: 500; }
-.rule-card .card-desc { font-size: 14px; color: #555; margin-top: 4px; }
+.rule-card .card-label { font-size: 16px; font-weight: 750; }
+.rule-card .card-desc { font-size: 15px; color: #5f5e57; margin-top: 4px; }
 .rule-card .card-section { font-size: 11px; color: #aaa; font-family: monospace; }
 .rule-card .card-actions { display: flex; gap: 6px; }
-.rule-card .card-actions button { opacity: 0; transition: opacity 0.15s; }
+.rule-card .card-actions button { opacity: .7; transition: opacity 0.15s; }
 .rule-card:hover .card-actions button { opacity: 1; }
 
 /* 编辑表单 */
@@ -49,14 +50,14 @@ h1 { font-size: 22px; margin-bottom: 6px; }
 /* 按钮 */
 .btn { padding: 8px 18px; border-radius: 5px; font-size: 13px; cursor: pointer; border: none; transition: all 0.2s; }
 .btn-sm { padding: 5px 12px; font-size: 12px; }
-.btn-primary { background: #1976d2; color: #fff; }
-.btn-primary:hover { background: #1565c0; }
+.btn-primary { background: #7b2d26; color: #fff; }
+.btn-primary:hover { background: #5e211c; }
 .btn-success { background: #2e7d32; color: #fff; }
 .btn-success:hover { background: #1b5e20; }
 .btn-danger { background: #fff; color: #c62828; border: 1px solid #ef9a9a; }
 .btn-danger:hover { background: #ffebee; }
-.btn-outline { background: #fff; color: #1976d2; border: 1px solid #90caf9; }
-.btn-outline:hover { background: #e3f2fd; }
+.btn-outline { background: #fff; color: #7b2d26; border: 1px solid #c9a69e; }
+.btn-outline:hover { background: #f5e5e0; }
 .btn-ghost { background: transparent; color: #888; border: 1px solid #ddd; }
 .btn-ghost:hover { background: #f5f5f5; }
 
@@ -64,7 +65,7 @@ h1 { font-size: 22px; margin-bottom: 6px; }
 .bottom-actions { display: flex; gap: 12px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
 
 /* 折叠区 */
-.collapse-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 20px; }
+.collapse-card { background: #fffdf8; border: 1px solid #ddd5c7; border-radius: 12px; margin-bottom: 20px; }
 .collapse-header { padding: 14px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
 .collapse-header:hover { background: #fafafa; }
 .collapse-header .arrow { transition: transform 0.2s; font-size: 12px; color: #999; }
@@ -73,7 +74,7 @@ h1 { font-size: 22px; margin-bottom: 6px; }
 .collapse-body.show { display: block; }
 
 /* 提示词 */
-.prompt-box { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px; font-size: 12px; line-height: 1.8; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; font-family: "SFMono-Regular", Consolas, monospace; color: #444; }
+.prompt-box { background: #292a25; border: 1px solid #292a25; border-radius: 8px; padding: 16px; font-size: 12px; line-height: 1.8; max-height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; font-family: "SFMono-Regular", Consolas, monospace; color: #f5f0e7; }
 .copy-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 
 textarea { width: 100%; min-height: 150px; border: 1px solid #ddd; border-radius: 6px; padding: 12px; font-size: 13px; font-family: "SFMono-Regular", Consolas, monospace; resize: vertical; line-height: 1.6; }
@@ -87,7 +88,7 @@ textarea:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgb
 /* 保存弹窗 */
 .save-dialog { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
 .save-dialog.show { display: flex; }
-.save-dialog-box { background: #fff; border-radius: 10px; padding: 24px; width: 420px; max-width: 90%; }
+.save-dialog-box { background: #fffdf8; border-radius: 16px; padding: 24px; width: 480px; max-width: 90%; }
 .save-dialog-box h3 { font-size: 16px; margin-bottom: 15px; }
 .save-dialog-box input { width: 100%; border: 1px solid #ddd; border-radius: 5px; padding: 8px 12px; font-size: 14px; margin-bottom: 15px; }
 .save-dialog-box input:focus { outline: none; border-color: #1976d2; }
@@ -96,45 +97,52 @@ textarea:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgb
 /* 加载状态 */
 .loading { text-align: center; padding: 60px 20px; color: #999; }
 .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+.profile-select { min-width:260px; border:1px solid #c9bfaf; border-radius:8px; padding:8px 10px; background:#fff; }
+.privacy-note { padding:11px 13px; margin-bottom:14px; border-radius:8px; background:#f7ecd1; color:#75531d; font-size:13px; }
+@media(max-width:640px){.source-bar{align-items:flex-start;flex-direction:column}.profile-select{width:100%;min-width:0}.rule-card .card-actions button{opacity:1}.topbar{padding:12px}.container{padding:26px 12px 50px}}
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <span class="title">规则编辑器</span>
+  <span class="title">文检 · 规则库</span>
   <div>
-    <a href="/">← 返回检测</a>
+    <a href="/">开始检查</a>
     &nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="/examples">格式参考</a>
   </div>
 </div>
 
 <div class="container">
-  <h1>格式规则管理</h1>
-  <p class="subtitle">查看和编辑当前生效的格式规则，修改会保存为新规范，内置规则不会被覆盖</p>
+  <h1>规则库</h1>
+  <p class="subtitle">每类材料使用自己的规则模板。修改内容会另存为新模板，不覆盖内置规则。</p>
 
   <!-- 来源指示 -->
   <div class="source-bar">
     <div>
-      <span class="label">当前使用：</span>
+      <span class="label">正在查看：</span>
       <span class="name" id="sourceName">加载中...</span>
     </div>
     <div class="actions">
+      <select class="profile-select" id="profilePicker" aria-label="切换规则模板">
+        {% for profile in profiles %}<option value="{{ profile.id }}" {% if selected_profile and profile.id == selected_profile.id %}selected{% endif %}>{{ profile.name }}</option>{% endfor %}
+      </select>
       <button class="btn btn-ghost btn-sm" onclick="restoreBuiltin()" id="restoreBtn" style="display:none;">恢复内置规则</button>
     </div>
   </div>
 
-  <!-- AI导入（折叠）- 首推 -->
+  <!-- AI 导入是高级能力，不作为默认流程 -->
   <div class="collapse-card">
     <div class="collapse-header" onclick="toggleCollapse(this)">
-      <span style="font-size:14px;font-weight:500;">通过 AI 批量导入规则</span>
+      <span style="font-size:14px;font-weight:700;">高级：借助 AI 整理规则草稿</span>
       <span class="arrow">▶</span>
     </div>
     <div class="collapse-body">
-      <p style="font-size:13px;color:#666;margin-bottom:12px;">适用于新学校适配：上传规范文件，用 AI 提取全部格式规则，一次性导入。</p>
+      <p class="privacy-note">只可向外部 AI 上传公开规范。未公开文件、学生材料和含个人信息的内容不得上传；AI 生成结果必须逐条人工核验。</p>
+      <p style="font-size:13px;color:#666;margin-bottom:12px;">适用于建立新的材料规则：让 AI 整理规则草稿，再由使用者逐条确认。</p>
       <div class="steps" style="font-size:13px;color:#555;margin-bottom:12px;line-height:1.8;">
-        <span style="display:inline-block;background:#e3f2fd;color:#1565c0;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:11px;font-weight:600;margin-right:4px;">1</span> 打开 <b>DeepSeek</b>（chat.deepseek.com）等免费且支持上传文档的网页 AI<br>
-        <span style="display:inline-block;background:#e3f2fd;color:#1565c0;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:11px;font-weight:600;margin-right:4px;">2</span> 上传毕业论文格式规范文件<br>
+        <span style="display:inline-block;background:#f5e5e0;color:#7b2d26;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:11px;font-weight:600;margin-right:4px;">1</span> 选择可信的本地 AI，或只向外部 AI 提供公开规范<br>
+        <span style="display:inline-block;background:#f5e5e0;color:#7b2d26;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:11px;font-weight:600;margin-right:4px;">2</span> 提供需要整理的格式规范文件<br>
         <span style="display:inline-block;background:#e3f2fd;color:#1565c0;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:11px;font-weight:600;margin-right:4px;">3</span> 粘贴下方提示词，发送<br>
         <span style="display:inline-block;background:#e3f2fd;color:#1565c0;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:11px;font-weight:600;margin-right:4px;">4</span> 复制 AI 返回的 JSON，粘贴到下方
       </div>
@@ -142,7 +150,7 @@ textarea:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgb
         <button class="btn btn-primary btn-sm" onclick="copyPrompt()">复制提示词</button>
         <span id="copyMsg" style="color:#2e7d32;font-size:13px;display:none;">已复制</span>
       </div>
-      <div class="prompt-box" id="promptBox">请仔细阅读我上传的毕业论文格式规范文件，提取其中所有的格式要求，按以下 JSON 格式输出。不要输出任何其他内容，只输出 JSON。
+      <div class="prompt-box" id="promptBox">请仔细阅读我提供的 Word 文档格式规范，提取其中明确写出的格式要求，按以下 JSON 格式输出。不要补写规范中没有的要求，不要输出任何其他内容，只输出 JSON。
 
 输出格式要求：
 
@@ -194,21 +202,15 @@ cover_title 封面题目 / cover_field 封面信息 / abstract_zh_title 中文�
     <button class="btn btn-success" onclick="showSaveDialog()">保存为新规范</button>
   </div>
 
-  <!-- 署名 -->
-  {% if show_footer %}
-  <div style="text-align:center;margin-top:30px;padding-top:20px;border-top:1px solid #eee;">
-    <p style="font-size:13px;color:#999;margin-bottom:10px;">Made with ❤ by <strong style="color:#666;">xigua</strong></p>
-    <p style="font-size:12px;color:#bbb;margin-bottom:8px;">觉得好用？请我喝杯奶茶 ☕</p>
-    <img src="/static/qr_placeholder.png" alt="打赏二维码" style="width:120px;height:120px;border-radius:8px;border:1px solid #eee;">
-  </div>
-  {% endif %}
 </div>
 
 <!-- 保存弹窗 -->
 <div class="save-dialog" id="saveDialog">
   <div class="save-dialog-box">
-    <h3>保存为新规范</h3>
-    <input type="text" id="specName" placeholder="如：XX大学2026届规范">
+    <h3>保存为新规则模板</h3>
+    <input type="text" id="specName" placeholder="如：课程大纲格式规则">
+    <input type="text" id="documentType" placeholder="适用材料，如：课程大纲">
+    <input type="text" id="ruleSource" placeholder="规则来源，如：2026版课程大纲模板">
     <div class="save-dialog-actions">
       <button class="btn btn-outline" onclick="hideSaveDialog()">取消</button>
       <button class="btn btn-success" onclick="saveSpec()">保存</button>
@@ -219,6 +221,8 @@ cover_title 封面题目 / cover_field 封面信息 / abstract_zh_title 中文�
 <script>
 let rules = [];
 let sourceInfo = { source: '', label: '' };
+let profileInfo = {};
+const currentProfileId = {{ (selected_profile.id if selected_profile else '__builtin__') | tojson }};
 let editingIndex = -1;
 let editingSnapshot = null;
 
@@ -226,11 +230,12 @@ let editingSnapshot = null;
 window.addEventListener('DOMContentLoaded', loadActiveRules);
 
 function loadActiveRules() {
-  fetch('/editor/active')
+  fetch('/editor/active?profile=' + encodeURIComponent(currentProfileId))
     .then(r => r.json())
     .then(data => {
       if (!data.ok) { showError('加载失败：' + (data.error || '')); return; }
       sourceInfo = { source: data.source, label: data.source_label };
+      profileInfo = data.profile || {};
       document.getElementById('sourceName').textContent = data.source_label;
       if (data.source !== 'builtin') {
         document.getElementById('restoreBtn').style.display = '';
@@ -245,6 +250,10 @@ function loadActiveRules() {
     })
     .catch(e => showError('网络错误：' + e.message));
 }
+
+document.getElementById('profilePicker').addEventListener('change', event => {
+  window.location.href = '/editor?profile=' + encodeURIComponent(event.target.value);
+});
 
 function renderCards() {
   const container = document.getElementById('rulesContainer');
@@ -474,6 +483,8 @@ function showSaveDialog() {
   if (rules.length === 0) { alert('暂无规则可保存'); return; }
   const defaultName = sourceInfo.source === 'builtin' ? '自定义规则' : sourceInfo.label;
   document.getElementById('specName').value = defaultName;
+  document.getElementById('documentType').value = profileInfo.document_type || '';
+  document.getElementById('ruleSource').value = profileInfo.source || '';
   document.getElementById('saveDialog').classList.add('show');
   document.getElementById('specName').focus();
 }
@@ -481,18 +492,29 @@ function hideSaveDialog() { document.getElementById('saveDialog').classList.remo
 
 function saveSpec() {
   const name = document.getElementById('specName').value.trim();
+  const documentType = document.getElementById('documentType').value.trim();
+  const ruleSource = document.getElementById('ruleSource').value.trim();
   if (!name) { alert('请输入规范名称'); return; }
   fetch('/editor/save', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ name: name, rules: rules })
+    body: JSON.stringify({
+      name: name,
+      rules: rules,
+      profile: {
+        document_type: documentType,
+        source: ruleSource,
+        description: documentType ? ('适用于' + documentType + '的本地格式规则') : '使用者确认的本地格式规则',
+        version: profileInfo.version || '1.0',
+        enabled_checks: profileInfo.enabled_checks == null ? null : profileInfo.enabled_checks
+      }
+    })
   })
   .then(r => r.json())
   .then(data => {
     if (data.ok) {
       hideSaveDialog();
-      alert('保存成功！新规范已生效。');
-      loadActiveRules();
+      window.location.href = '/editor?profile=' + encodeURIComponent(data.profile_id);
     } else {
       alert('保存失败：' + (data.error || '未知错误'));
     }
@@ -503,18 +525,7 @@ function saveSpec() {
 // 恢复内置
 function restoreBuiltin() {
   if (!confirm('确定恢复为内置规则？当前自定义规则不会被删除。')) return;
-  fetch('/editor/load/__builtin__')
-    .then(r => r.json())
-    .then(data => {
-      if (data.ok) {
-        rules = data.rules;
-        sourceInfo = { source: 'builtin', label: '内置规则' };
-        document.getElementById('sourceName').textContent = '内置规则';
-        document.getElementById('restoreBtn').style.display = 'none';
-        editingIndex = -1;
-        renderCards();
-      }
-    });
+  window.location.href = '/editor?profile=__builtin__';
 }
 
 // AI 导入

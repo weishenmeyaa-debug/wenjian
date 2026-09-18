@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul 2>&1
-title 毕业设计格式检测工具
+title 文检 - Word 文档格式检查
 cd /d "%~dp0"
 
 :: 检测 Python
@@ -38,16 +38,25 @@ if not exist "venv" (
     call venv\Scripts\activate.bat
 )
 
+:: 从 5001 开始寻找可用端口，避免误打开其他程序
+set PORT=5001
+:check_port
+netstat -ano | findstr /R /C:":%PORT% .*LISTENING" >nul
+if %errorlevel% equ 0 (
+    set /a PORT+=1
+    goto :check_port
+)
+
 :: 启动
 echo.
-echo ✅ 启动成功！浏览器将自动打开...
-echo    如果没有自动打开，请访问: http://localhost:5001
+echo ✅ 文检启动成功！浏览器将自动打开...
+echo    如果没有自动打开，请访问: http://127.0.0.1:%PORT%
 echo    关闭此窗口即可停止程序
 echo.
 
 :: 延迟打开浏览器
-start "" /b cmd /c "timeout /t 2 >nul & start http://localhost:5001"
+start "" /b cmd /c "timeout /t 2 >nul & start http://127.0.0.1:%PORT%"
 
 :: 运行 Flask
-python app.py --port 5001
+python app.py --port %PORT%
 pause
