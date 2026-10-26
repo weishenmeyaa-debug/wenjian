@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>格式检查器 · 使用说明</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+    font-size: 11.5pt;
+    line-height: 1.7;
+    color: #24251f;
+    background: #fff;
+  }
+  h1 { font-size: 21pt; margin: 0 0 4pt; letter-spacing: .01em; }
+  .sub { margin: 0 0 14pt; color: #706f67; font-size: 10.5pt; }
+  h2.pagebreak { break-before: page; }
+  h2.pagebreak { break-before: page; }
+  h2 {
+    font-size: 13.5pt;
+    margin: 15pt 0 6pt;
+    padding-left: 8pt;
+    border-left: 4pt solid #7b2d26;
+    break-after: avoid;
+  }
+  p { margin: 0 0 6pt; }
+  .lede { font-size: 11.5pt; }
+  ol, ul { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin-bottom: 2pt; break-inside: avoid; }
+  strong { font-weight: 600; }
+  code {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10.5pt;
+    background: #f4f0e8;
+    padding: 1pt 4pt;
+    border-radius: 3pt;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 6pt 0 10pt; font-size: 11pt; break-inside: avoid; }
+  th, td { border-bottom: .6pt solid #ddd5c7; padding: 6pt 8pt; text-align: left; vertical-align: top; }
+  th { color: #706f67; font-weight: 600; font-size: 10.5pt; }
+  td:first-child { width: 22%; color: #4c4d45; }
+  .note {
+    margin: 10pt 0 12pt;
+    padding: 8pt 12pt;
+    background: #fdf4e6;
+    border-left: 3pt solid #b8862b;
+    font-size: 11pt;
+    break-inside: avoid;
+  }
+  .qa { margin: 0 0 9pt; break-inside: avoid; }
+  .qa .q { font-weight: 600; margin-bottom: 1pt; }
+  .qa .a { color: #3c3d36; }
+  hr { border: none; border-top: .6pt solid #ddd5c7; margin: 16pt 0; }
+  .foot { margin-top: 16pt; color: #8a8981; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<h1>格式检查器 · 使用说明</h1>
+<p class="sub">在自己电脑上跑的 Word 文档格式检查工具</p>
+
+<p class="lede">选好模板、把文档放进去，它按模板逐项比对，列出不符合的地方。改还是你自己回 Word 改。</p>
+<p>它只查格式：字体、字号、行距、段落、标题编号、图表编号、页面设置这些能从文件里读出来的东西。文字写得好不好、论证是否成立、版面好不好看，它不管，也不给分。</p>
+
+<h2>一、用之前</h2>
+<table>
+  <tr><th>项目</th><th>要求</th></tr>
+  <tr><td>电脑</td><td>Windows 10 以上，或 macOS</td></tr>
+  <tr><td>Python</td><td>3.9 或更高。没装过的现装一个，Windows 安装时勾上 <strong>Add python.exe to PATH</strong></td></tr>
+  <tr><td>网络</td><td>只有第一次启动需要联网下载依赖，之后全程离线</td></tr>
+</table>
+<p>Python 下载：<code>python.org/downloads</code>。国内打不开时用镜像站（华为云、清华 TUNA 都有安装包）。Mac 装完还要打开「应用程序 → Python 3.x」文件夹，双击运行一次 <strong>Install Certificates.command</strong>，否则下面装依赖会报证书错误，看起来像断网。</p>
+
+<h2>二、第一次打开</h2>
+<ol>
+  <li>把整个文件夹解压到一个固定位置，比如「文档」目录下面。不要放在 U 盘里，也不要放到 OneDrive、iCloud、坚果云这类同步目录里——程序自带的环境有几万个小文件，同步会卡死。</li>
+  <li>Mac 双击 <code>start.command</code>；Windows 双击 <code>start.bat</code>。Mac 第一次可能提示「无法打开，因为无法验证开发者」，右键点它 → 打开。</li>
+  <li>窗口里会打印一行地址，浏览器通常自动打开。第一次要装依赖，等一分钟左右。</li>
+  <li><strong>这个窗口别关</strong>，关了程序就停了。用完再关。</li>
+</ol>
+
+<h2>三、检查一篇文档</h2>
+<ol>
+  <li>首页选模板。列表里带 ★ 的是主模板，打开时默认选它。</li>
+  <li>把 <code>.docx</code> 拖进页面，或点选文件。一次最多 12 个，合计不超过 96MB。</li>
+  <li>点「检查所选文档」。</li>
+  <li>结果分三类：<strong>必须修改</strong>、<strong>建议复核</strong>、<strong>需要人工确认</strong>。先处理必须修改的。</li>
+  <li>回 Word 改原件。工具不会改动你的文件。</li>
+  <li>需要留档就下载报告。报告只在程序运行期间保留，关掉就没了。</li>
+</ol>
+
+<h2>四、模板要自己建</h2>
+<p>随包带的「示例模板」只是为了让你看到流程长什么样。拿它去查自己的材料会误判——每所学校、每份材料的要求都不一样。</p>
+<p>新建模板不用一条条手输：</p>
+<ol>
+  <li>进入「模板规则」，点「复制提示词」。</li>
+  <li>打开任意一个联网的 AI 网站，把提示词和你那份格式规范一起发给它。规范是电子文件就上传，是纸质的就拍照。</li>
+  <li>把它回的内容整段复制，粘回页面，点「解析」。</li>
+  <li><strong>逐条核对</strong>。AI 会看错、会漏、也会编，对着正式文件核一遍再存。</li>
+  <li>点「保存为新模板」，起个能认出来的名字，比如「××学院毕业论文」。</li>
+  <li>以后在模板列表里把它设为主模板。</li>
+</ol>
+<div class="note">⚠️ 未公开的规范、学生材料、含姓名学号的文件，不要发给外部 AI。</div>
+
+<h2>五、四件要说清楚的事</h2>
+<ul>
+  <li>一次最多 12 个文件、合计 96MB。</li>
+  <li>旧的 <code>.doc</code> 只能救急：Mac 会自动转换，Windows 请先在 Word 或 WPS 里「另存为」<code>.docx</code>。</li>
+  <li>它不代写、不改你的文件、也不替代正式规范。最终以学校、期刊、单位发布的正式文件为准。</li>
+  <li>结果要人看。Word 的样式继承、域、浮动对象，程序读不全，这类会标成「需要人工确认」，不是漏了。</li>
+</ul>
+
+<h2>六、隐私</h2>
+<ul>
+  <li>文档只在你自己的电脑上处理，不上传、不联网、不需要账号。</li>
+  <li>上传的副本在检查结束后删除。</li>
+  <li>检查报告只在程序运行期间留在内存里，关掉就没了。</li>
+</ul>
+
+<h2 class="pagebreak">七、常见问题</h2>
+<div class="qa"><p class="q">双击没反应，或窗口一闪就没了</p><p class="a">Mac：右键 → 打开。Windows：右键 →「以管理员身份运行」一次，或看清窗口最后一行报什么错。</p></div>
+<div class="qa"><p class="q">提示「未找到 Python」</p><p class="a">没装，或者没加进 PATH。Windows 重装时勾上 Add python.exe to PATH；Mac 也可以在终端输入 <code>xcode-select --install</code> 装命令行工具。</p></div>
+<div class="qa"><p class="q">第一次启动卡在「正在安装依赖」</p><p class="a">多是网络。Mac 先运行 Install Certificates.command，再重新双击。还不行就换个网络（手机热点）。</p></div>
+<div class="qa"><p class="q">浏览器没有自动打开</p><p class="a">看窗口里那行地址，一般是 <code>http://localhost:5001</code>，手动粘到浏览器。端口被占用时程序会自动换一个，以窗口显示的为准。</p></div>
+<div class="qa"><p class="q">结果和肉眼看到的不一样</p><p class="a">先确认选对了模板，再到 Word 的「样式」面板核对那一段。程序读不出来的项目以人工判断为准。</p></div>
+<div class="qa"><p class="q">怎么停下来</p><p class="a">关掉那个黑色窗口。Mac 上是「终端」窗口。</p></div>
+<div class="qa"><p class="q">换电脑、更新程序</p><p class="a">程序文件可以整个覆盖。<code>specs/</code> 文件夹是你自己存的模板，<code>settings.json</code> 记着哪套是主模板，这两样留着别删。</p></div>
+
+<p class="foot">格式检查器 · Word 文档格式检查</p>
+
+</body>
+</html>

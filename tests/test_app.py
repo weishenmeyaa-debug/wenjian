@@ -62,6 +62,10 @@ class AppSafetyTests(unittest.TestCase):
         ])
         self.assertEqual(checks, ["font"])
 
+    def test_default_host_stays_local(self):
+        """默认必须只听本机；对局域网开放只能靠显式 --host，不许改默认值省事。"""
+        self.assertEqual(app_module.DEFAULT_HOST, "127.0.0.1")
+
 
 if __name__ == "__main__":
     unittest.main()

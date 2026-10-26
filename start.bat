@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul 2>&1
-title 规检 - Word 文档格式检查
+title 格式检查器 - Word 文档格式检查
 cd /d "%~dp0"
 
 :: 检测 Python
@@ -30,10 +30,17 @@ exit /b 1
 :found
 :: 创建虚拟环境
 if not exist "venv" (
-    echo 📦 首次运行，正在安装依赖...
+    echo 📦 首次运行，正在安装依赖（需要联网，大约 1 分钟）...
     %PYTHON% -m venv venv
     call venv\Scripts\activate.bat
-    pip install -r requirements.txt -q
+    pip install -r requirements.txt -q -i https://pypi.tuna.tsinghua.edu.cn/simple
+    if errorlevel 1 pip install -r requirements.txt -q
+    if errorlevel 1 (
+        echo.
+        echo ❌ 依赖安装失败，请检查网络后重试。
+        pause
+        exit /b 1
+    )
 ) else (
     call venv\Scripts\activate.bat
 )
@@ -49,7 +56,7 @@ if %errorlevel% equ 0 (
 
 :: 启动
 echo.
-echo ✅ 规检启动成功！浏览器将自动打开...
+echo ✅ 格式检查器启动成功！浏览器将自动打开...
 echo    如果没有自动打开，请访问: http://127.0.0.1:%PORT%
 echo    关闭此窗口即可停止程序
 echo.

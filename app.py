@@ -45,6 +45,8 @@ ALLOWED_EXTENSIONS = {"docx", "doc"}
 MAX_FILES_PER_CHECK = 12
 REPORT_TTL_SECONDS = 60 * 60
 BUILTIN_PROFILE_ID = "__builtin__"
+# 默认只监听本机。要让同一网络的其他人访问，启动时显式加 --host 0.0.0.0。
+DEFAULT_HOST = "127.0.0.1"
 
 # 报告只在当前进程内短期保存，不写入磁盘。
 REPORT_CACHE = {}
@@ -746,9 +748,39 @@ def download_report(report_id):
 sync_default_profile()
 
 
+def local_ipv4_addresses():
+    """列出本机在局域网里的地址，方便把网址发给同一网络的人。"""
+    import socket
+    ips = set()
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ips.add(info[4][0])
+    except OSError:
+        pass
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            ips.add(s.getsockname()[0])
+    except OSError:
+        pass
+    return sorted(ip for ip in ips if not ip.startswith("127."))
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5001)
+    parser.add_argument(
+        "--host",
+        default=DEFAULT_HOST,
+        help="默认只监听本机；改成 0.0.0.0 后，同一网络的其他人也能打开（用完请关闭）",
+    )
     args = parser.parse_args()
-    app.run(host="127.0.0.1", debug=False, port=args.port)
+    if args.host not in ("127.0.0.1", "localhost"):
+        print("\n" + "=" * 52)
+        print("已对局域网开放：同一网络内任何人都能打开下面的地址、上传文档。")
+        print("试完请关闭这个窗口，或按 Ctrl+C 停止。")
+        for ip in local_ipv4_addresses():
+            print("    http://%s:%s" % (ip, args.port))
+        print("=" * 52 + "\n")
+    app.run(host=args.host, debug=False, port=args.port)

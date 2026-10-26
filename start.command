@@ -13,10 +13,13 @@ fi
 
 # 创建虚拟环境
 if [ ! -d "venv" ]; then
-  echo "📦 首次运行，正在安装依赖..."
+  echo "📦 首次运行，正在安装依赖（需要联网，大约 1 分钟）..."
   python3 -m venv venv
   source venv/bin/activate
-  pip install -r requirements.txt -q
+  # 国内直连 pypi 常常超时，先用清华镜像，失败再回退官方源
+  pip install -r requirements.txt -q -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    || pip install -r requirements.txt -q \
+    || { echo "❌ 依赖安装失败。请检查网络；Mac 还需在「应用程序 → Python 3.x」文件夹里运行一次 Install Certificates.command"; read -p "按回车退出..."; exit 1; }
 else
   source venv/bin/activate
 fi
