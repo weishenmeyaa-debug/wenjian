@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% set active_page = "check" %}
-{% block title %}检查结果 · 文检{% endblock %}
+{% block title %}检查结果 · 格式检查器{% endblock %}
 
 {% block body %}
 {% set total_errors = results | map(attribute='summary.errors') | sum %}

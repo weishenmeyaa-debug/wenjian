@@ -1,232 +1,214 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>规则库 · 文检</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: "MiSans", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f3efe6; color: #24251f; line-height: 1.65; font-size:16px; }
-.topbar { background: rgba(248,245,238,.9); padding: 14px max(20px,calc((100% - 1120px)/2)); border-bottom: 1px solid #ddd5c7; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; backdrop-filter:blur(18px); }
-.topbar a { color: #7b2d26; text-decoration: none; font-size: 14px; font-weight:700; }
-.topbar a:hover { text-decoration: underline; }
-.topbar .title { font-size: 17px; font-weight: 800; }
-.container { max-width: 1020px; margin: 0 auto; padding: 38px 20px 72px; }
-h1 { font-family:"Songti SC","STSong",serif; font-size: 38px; margin-bottom: 8px; }
-.subtitle { color: #706f67; font-size: 16px; margin-bottom: 25px; }
+{% extends "base.html" %}
+{% set active_page = "rules" %}
+{% block title %}模板规则 · 格式检查器{% endblock %}
 
-/* 来源指示条 */
-.source-bar { background: #fffdf8; border: 1px solid #ddd5c7; border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap:16px; box-shadow:0 12px 36px rgba(57,47,33,.06); }
-.source-bar .label { font-size: 13px; color: #888; }
-.source-bar .name { font-size: 16px; font-weight: 750; color: #24251f; margin-left: 8px; }
-.source-bar .actions { display: flex; gap: 8px; }
-
-/* 卡片网格 */
-.rules-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
-.rule-card { background: #fffdf8; border: 1px solid #ddd5c7; border-radius: 12px; padding: 17px 20px; transition: all 0.15s; }
-.rule-card:hover { border-color: #b9958a; box-shadow: 0 8px 24px rgba(57,47,33,.08); }
-.rule-card.editing { border-color: #7b2d26; box-shadow: 0 0 0 3px rgba(123,45,38,.08); }
-.rule-card .card-head { display: flex; align-items: center; justify-content: space-between; }
-.rule-card .card-label { font-size: 16px; font-weight: 750; }
-.rule-card .card-desc { font-size: 15px; color: #5f5e57; margin-top: 4px; }
-.rule-card .card-section { font-size: 11px; color: #aaa; font-family: monospace; }
-.rule-card .card-actions { display: flex; gap: 6px; }
-.rule-card .card-actions button { opacity: .7; transition: opacity 0.15s; }
-.rule-card:hover .card-actions button { opacity: 1; }
-
-/* 编辑表单 */
-.edit-form { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
-.edit-form.show { display: block; }
-.form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-.form-group { display: flex; flex-direction: column; }
-.form-group label { font-size: 12px; color: #888; margin-bottom: 3px; }
-.form-group input, .form-group select { border: 1px solid #ddd; border-radius: 5px; padding: 7px 10px; font-size: 14px; }
-.form-group input:focus, .form-group select:focus { outline: none; border-color: #1976d2; }
-.form-group.w-full { width: 100%; }
-.form-group.w-full input { width: 100%; }
-.form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
-
-/* 按钮 */
-.btn { padding: 8px 18px; border-radius: 5px; font-size: 13px; cursor: pointer; border: none; transition: all 0.2s; }
-.btn-sm { padding: 5px 12px; font-size: 12px; }
-.btn-primary { background: #7b2d26; color: #fff; }
-.btn-primary:hover { background: #5e211c; }
-.btn-success { background: #2e7d32; color: #fff; }
-.btn-success:hover { background: #1b5e20; }
-.btn-danger { background: #fff; color: #c62828; border: 1px solid #ef9a9a; }
-.btn-danger:hover { background: #ffebee; }
-.btn-outline { background: #fff; color: #7b2d26; border: 1px solid #c9a69e; }
-.btn-outline:hover { background: #f5e5e0; }
-.btn-ghost { background: transparent; color: #888; border: 1px solid #ddd; }
-.btn-ghost:hover { background: #f5f5f5; }
-
-/* 底部操作区 */
-.bottom-actions { display: flex; gap: 12px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
-
-/* 折叠区 */
-.collapse-card { background: #fffdf8; border: 1px solid #ddd5c7; border-radius: 12px; margin-bottom: 20px; }
-.collapse-header { padding: 14px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
-.collapse-header:hover { background: #fafafa; }
-.collapse-header .arrow { transition: transform 0.2s; font-size: 12px; color: #999; }
-.collapse-header .arrow.open { transform: rotate(90deg); }
-.collapse-body { display: none; padding: 0 20px 20px; }
-.collapse-body.show { display: block; }
-
-/* 提示词 */
-.prompt-box { background: #292a25; border: 1px solid #292a25; border-radius: 8px; padding: 16px; font-size: 12px; line-height: 1.8; max-height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; font-family: "SFMono-Regular", Consolas, monospace; color: #f5f0e7; }
-.copy-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-
-textarea { width: 100%; min-height: 150px; border: 1px solid #ddd; border-radius: 6px; padding: 12px; font-size: 13px; font-family: "SFMono-Regular", Consolas, monospace; resize: vertical; line-height: 1.6; }
-textarea:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,0.15); }
-.parse-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
-
-.msg { padding: 8px 12px; border-radius: 4px; font-size: 13px; margin-top: 10px; display: none; }
-.msg.error { background: #ffebee; color: #c62828; display: block; }
-.msg.success { background: #e8f5e9; color: #2e7d32; display: block; }
-
-/* 保存弹窗 */
-.save-dialog { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
-.save-dialog.show { display: flex; }
-.save-dialog-box { background: #fffdf8; border-radius: 16px; padding: 24px; width: 480px; max-width: 90%; }
-.save-dialog-box h3 { font-size: 16px; margin-bottom: 15px; }
-.save-dialog-box input { width: 100%; border: 1px solid #ddd; border-radius: 5px; padding: 8px 12px; font-size: 14px; margin-bottom: 15px; }
-.save-dialog-box input:focus { outline: none; border-color: #1976d2; }
-.save-dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
-
-/* 加载状态 */
-.loading { text-align: center; padding: 60px 20px; color: #999; }
-.empty-state { text-align: center; padding: 60px 20px; color: #999; }
-.profile-select { min-width:260px; border:1px solid #c9bfaf; border-radius:8px; padding:8px 10px; background:#fff; }
-.privacy-note { padding:11px 13px; margin-bottom:14px; border-radius:8px; background:#f7ecd1; color:#75531d; font-size:13px; }
-@media(max-width:640px){.source-bar{align-items:flex-start;flex-direction:column}.profile-select{width:100%;min-width:0}.rule-card .card-actions button{opacity:1}.topbar{padding:12px}.container{padding:26px 12px 50px}}
-</style>
-</head>
-<body>
-
-<div class="topbar">
-  <span class="title">文检 · 规则库</span>
-  <div>
-    <a href="/">开始检查</a>
-    &nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="/examples">格式参考</a>
-  </div>
-</div>
-
-<div class="container">
-  <h1>规则库</h1>
-  <p class="subtitle">每类材料使用自己的规则模板。修改内容会另存为新模板，不覆盖内置规则。</p>
-
-  <!-- 来源指示 -->
-  <div class="source-bar">
+{% block body %}
+<main class="page-shell page-shell--narrow">
+  <header class="page-head">
     <div>
-      <span class="label">正在查看：</span>
-      <span class="name" id="sourceName">加载中...</span>
+      <p class="eyebrow">FORMAT TEMPLATES</p>
+    <h1 class="page-title">模板规则</h1>
+      <p class="lede">一套模板就是一组格式要求。检查文档时选一套，工具按里面的规则逐条比对。</p>
+  </div>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}<div class="flash-stack">{% for category, msg in messages %}<div class="flash {{ category }}">{{ msg }}</div>{% endfor %}</div>{% endif %}
+  {% endwith %}
+
+  <section class="panel profile-strip" aria-label="当前模板">
+    <div class="profile-strip__main">
+      <div class="profile-strip__title">
+        <strong id="sourceName">加载中…</strong>
+        <span class="tag tag--default" id="defaultTag" hidden>主模板</span>
+        <span class="tag tag--sample" id="sampleTag" hidden>示例</span>
+        <span class="dirty-flag" id="dirtyFlag" hidden>有未保存的改动</span>
+      </div>
+      <p id="sourceMeta">正在读取模板</p>
+      <p class="strip-hint">主模板是首页默认选中的那套。切换只换编辑对象，不会改动已有的规则。</p>
     </div>
-    <div class="actions">
-      <select class="profile-select" id="profilePicker" aria-label="切换规则模板">
-        {% for profile in profiles %}<option value="{{ profile.id }}" {% if selected_profile and profile.id == selected_profile.id %}selected{% endif %}>{{ profile.name }}</option>{% endfor %}
+    <div class="page-actions">
+      <label class="field-label" for="profilePicker" style="margin:0 2px 0 0">切换</label>
+      <select class="text-input" id="profilePicker" style="width:auto;min-width:190px;">
+        {% for profile in profiles %}
+        <option value="{{ profile.id }}" {% if selected_profile and profile.id == selected_profile.id %}selected{% endif %}>{% if profile.is_default %}★ {% endif %}{{ profile.name }}</option>
+        {% endfor %}
       </select>
-      <button class="btn btn-ghost btn-sm" onclick="restoreBuiltin()" id="restoreBtn" style="display:none;">恢复内置规则</button>
+      <button class="btn btn--ghost btn--sm" id="makeDefaultBtn" onclick="setAsDefault()" hidden>设为主模板</button>
+      <button class="btn btn--ghost btn--sm" onclick="showRenameDialog()">改名</button>
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('examples', profile=selected_profile.id if selected_profile else none) }}">格式参考</a>
+      <button class="btn btn--danger btn--sm" id="deleteBtn" onclick="deleteCurrentProfile()" hidden>删除此模板</button>
+    </div>
+  </section>
+
+  <section class="panel ai-builder" aria-labelledby="aiTitle">
+    <h2 class="ai-builder__title" id="aiTitle">新建模板：使用外部 AI 解析规则文档</h2>
+
+    <ol class="step-list">
+      <li>点「复制提示词」。</li>
+      <li>打开任意一个外部网络 AI 网站，把提示词和规范一起发给它。规范是文件就上传文件，是纸质件就拍照。</li>
+      <li>把 AI 回复的内容整段粘到下面输入框，点「解析」。</li>
+      <li>核对一遍，点最下面的「保存为新模板」，填个名称。不保存不会留下来。</li>
+    </ol>
+
+    <p class="privacy-note">注意⚠️：未公开材料、学生材料、含个人信息的文件不要发给外部 AI；AI 整理的规则必须逐条对照正式文件核对。</p>
+
+    <div class="copy-row">
+      <button class="btn btn--primary btn--sm" onclick="copyPrompt()">复制提示词</button>
+      <span class="msg ok" id="copyMsg" hidden>已复制</span>
+      <details class="prompt-details">
+        <summary>看看提示词写了什么</summary>
+        <div class="prompt-box" id="promptBox">你是格式规范整理助手。下面我会给你一份文档格式规范（Word 文档、PDF、截图或文字都可能有）。请把它整理成机器能读的规则清单。
+
+只输出一个 JSON 数组，不要解释，不要 Markdown 代码块。数组里每一项是一条格式要求：
+
+{
+  "section": "下方清单里的英文标识，必填",
+  "label": "中文名称，必填",
+  "font": "字体，如 宋体、黑体、楷体、仿宋、Times New Roman、Arial Black",
+  "size_pt": 字号磅值，数字，如 16、15、12、10.5、9,
+  "size_name": "中文字号，如 三号、小三、小四、五号、小五",
+  "bold": true 或 false,
+  "alignment": "居中" 或 "两端对齐" 或 "左对齐",
+  "line_spacing_pt": 固定行距磅值，数字，如 22、18,
+  "line_spacing_type": "固定值" 或 "多倍行距"
+}
+
+规范里没写的字段一律不填，不要按常识补。
+
+size_pt 与 size_name 必须对应：
+初号42 小初36 一号26 小一24 二号22 小二18 三号16 小三15 四号14 小四12 五号10.5 小五9 六号7.5 小六6.5
+
+section 只能从下面这些里选：
+cover_title 封面题目
+cover_field 封面上的姓名、学号、专业、指导教师、日期
+abstract_zh_title 中文摘要标题
+abstract_zh_body 中文摘要正文
+keywords_zh 中文关键词
+abstract_en_title 英文摘要标题 Abstract
+abstract_en_body 英文摘要正文
+keywords_en 英文关键词 Key words
+toc_title 目录标题
+level1_title 一级标题
+level2_title 二级标题
+level3_title 三级标题
+body_text 正文
+figure_caption 图题注
+table_caption 表题注
+footnote 脚注
+reference_title 参考文献标题
+reference_entry 参考文献条目
+page_number 页码
+page_header 页眉
+
+下面这几类用专门字段，不要写成普通字体规则：
+参考文献最少篇数：{"section":"reference_count","label":"参考文献数量","min_count":20}
+外文文献最少篇数：{"section":"reference_foreign_count","label":"外文文献数量","min_count":3}
+正文字数：{"section":"word_count","label":"正文字数","min_words_design":7000,"min_words_paper":10000}
+摘要字数：{"section":"abstract_word_count","label":"摘要字数","min_words":400}
+页面设置：{"section":"page_setup","label":"页面设置","paper":"A4","width_mm":210,"height_mm":297}
+页眉：{"section":"page_header","label":"页眉","font":"宋体","size_pt":9,"size_name":"小五","header_text":"页眉上要出现的文字"}
+
+要求：
+1. 只提取规范里明确写出来的要求，没写的不补。
+2. 同一项在规范里出现多次时，以正文部分的要求为准，目录里的写法不算。
+3. 一个对象只出一条规则，同一对象的多条要求合并。
+4. 页眉文字照抄原文，不要改写。
+5. 必须是合法 JSON，引号用英文半角。</div>
+      </details>
+    </div>
+
+    <div id="jsonImport">
+      <label class="field-label" for="jsonInput">AI 返回的内容</label>
+      <textarea id="jsonInput" placeholder="整段粘到这里，带不带代码块都能识别"></textarea>
+      <div class="parse-row">
+        <button class="btn btn--primary btn--sm" onclick="parseJson()">解析</button>
+      </div>
+      <div class="msg" id="parseMsg" hidden></div>
+    </div>
+  </section>
+
+  <div class="rules-head">
+    <h2>当前模板的规则</h2>
+    <p>每条一条要求，可以改也可以删。</p>
+  </div>
+
+  <div id="rulesContainer" aria-live="polite">
+    <div class="loading">正在加载规则…</div>
+  </div>
+
+  <div class="bottom-actions" id="bottomActions" hidden>
+    <button class="btn btn--secondary btn--sm" onclick="addRule()">+ 添加规则</button>
+    <button class="btn btn--primary btn--sm" onclick="showSaveDialog()">保存为新规范</button>
+  </div>
+</main>
+
+<div class="modal" id="saveDialog" role="dialog" aria-modal="true" aria-labelledby="saveDialogTitle">
+  <div class="modal__box">
+    <h3 id="saveDialogTitle">保存为新规则模板</h3>
+    <p>会另存为新文件，内置规则和已有模板都不会被覆盖。</p>
+    <div class="form-group">
+      <label for="specName">模板名称</label>
+      <input type="text" id="specName" placeholder="如：课程材料格式规则">
+    </div>
+    <div class="form-group">
+      <label for="documentType">适用材料</label>
+      <input type="text" id="documentType" placeholder="如：课程材料">
+    </div>
+    <div class="form-group">
+      <label for="ruleSource">规则来源</label>
+      <input type="text" id="ruleSource" placeholder="如：2026 版格式说明">
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--secondary btn--sm" onclick="hideSaveDialog()">取消</button>
+      <button class="btn btn--primary btn--sm" onclick="saveSpec()">保存</button>
     </div>
   </div>
-
-  <!-- AI 导入是高级能力，不作为默认流程 -->
-  <div class="collapse-card">
-    <div class="collapse-header" onclick="toggleCollapse(this)">
-      <span style="font-size:14px;font-weight:700;">高级：借助 AI 整理规则草稿</span>
-      <span class="arrow">▶</span>
-    </div>
-    <div class="collapse-body">
-      <p class="privacy-note">只可向外部 AI 上传公开规范。未公开文件、学生材料和含个人信息的内容不得上传；AI 生成结果必须逐条人工核验。</p>
-      <p style="font-size:13px;color:#666;margin-bottom:12px;">适用于建立新的材料规则：让 AI 整理规则草稿，再由使用者逐条确认。</p>
-      <div class="steps" style="font-size:13px;color:#555;margin-bottom:12px;line-height:1.8;">
-        <span style="display:inline-block;background:#f5e5e0;color:#7b2d26;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:11px;font-weight:600;margin-right:4px;">1</span> 选择可信的本地 AI，或只向外部 AI 提供公开规范<br>
-        <span style="display:inline-block;background:#f5e5e0;color:#7b2d26;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:11px;font-weight:600;margin-right:4px;">2</span> 提供需要整理的格式规范文件<br>
-        <span style="display:inline-block;background:#e3f2fd;color:#1565c0;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:11px;font-weight:600;margin-right:4px;">3</span> 粘贴下方提示词，发送<br>
-        <span style="display:inline-block;background:#e3f2fd;color:#1565c0;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;font-size:11px;font-weight:600;margin-right:4px;">4</span> 复制 AI 返回的 JSON，粘贴到下方
-      </div>
-      <div class="copy-row">
-        <button class="btn btn-primary btn-sm" onclick="copyPrompt()">复制提示词</button>
-        <span id="copyMsg" style="color:#2e7d32;font-size:13px;display:none;">已复制</span>
-      </div>
-      <div class="prompt-box" id="promptBox">请仔细阅读我提供的 Word 文档格式规范，提取其中明确写出的格式要求，按以下 JSON 格式输出。不要补写规范中没有的要求，不要输出任何其他内容，只输出 JSON。
-
-输出格式要求：
-
-[
-  {
-    "section": "英文标识（如 cover_title, abstract_zh_body, level1_title, body_text, footnote, reference_entry 等）",
-    "label": "中文名称（如 封面题目、中文摘要正文、一级标题、正文、脚注、参考文献条目 等）",
-    "font": "字体名（如 宋体、黑体、楷体、Times New Roman、Arial Black）",
-    "size_pt": 数字字号（如 16、15、12、10.5、9）,
-    "size_name": "中文字号名（如 三号、小三、小四、五号、小五）",
-    "bold": true 或 false 或 null（null 表示不做强制要求）,
-    "alignment": "居中 或 两端对齐 或 左对齐 或 null",
-    "line_spacing_pt": 数字行距（如 22、18）,
-    "line_spacing_type": "固定值 或 多倍 或 最小值",
-    "notes": "特殊说明（如 脚注中英文用 Times New Roman，中文用宋体）"
-  }
-]
-
-section 常用标识参考：
-cover_title 封面题目 / cover_field 封面信息 / abstract_zh_title 中文摘要标题 / abstract_zh_body 中文摘要正文 / keywords_zh 中文关键词 / abstract_en_title 英文摘要标题 / abstract_en_body 英文摘要正文 / keywords_en 英文关键词 / toc_title 目录标题 / level1_title 一级标题 / level2_title 二级标题 / level3_title 三级标题 / body_text 正文 / figure_caption 图题注 / table_caption 表题注 / footnote 脚注 / reference_title 参考文献标题 / reference_entry 参考文献条目 / acknowledgment_title 致谢标题 / acknowledgment_body 致谢正文 / appendix_title 附录标题
-
-额外要求：
-1. 参考文献数量要求：加 section 为 "reference_count" 的规则，用 min_count 字段
-2. 外文文献数量要求：加 section 为 "reference_foreign_count" 的规则，用 min_count 字段
-3. 正文字数要求：加 section 为 "word_count" 的规则，用 min_words 字段
-4. 摘要字数要求：加 section 为 "abstract_word_count" 的规则，用 min_words 字段
-5. 页面设置要求：加 section 为 "page_setup" 的规则，用 width_mm 和 height_mm 字段
-6. 页眉要求：加 section 为 "page_header" 的规则，用 header_text 字段
-7. 图片子编号格式要求写在 figure_caption 的 notes 字段中
-8. 脚注编号规则写在 footnote 的 notes 字段中</div>
-      <div style="margin-top:16px;">
-        <textarea id="jsonInput" placeholder="把 AI 生成的 JSON 粘贴到这里..."></textarea>
-        <div class="parse-row">
-          <button class="btn btn-primary btn-sm" onclick="parseJson()">解析并加载</button>
-        </div>
-        <div class="msg" id="parseMsg"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 规则卡片列表 -->
-  <div id="rulesContainer">
-    <div class="loading">正在加载规则...</div>
-  </div>
-
-  <!-- 底部操作 -->
-  <div class="bottom-actions" id="bottomActions" style="display:none;">
-    <button class="btn btn-outline" onclick="addRule()">+ 添加规则</button>
-    <button class="btn btn-success" onclick="showSaveDialog()">保存为新规范</button>
-  </div>
-
 </div>
 
-<!-- 保存弹窗 -->
-<div class="save-dialog" id="saveDialog">
-  <div class="save-dialog-box">
-    <h3>保存为新规则模板</h3>
-    <input type="text" id="specName" placeholder="如：课程大纲格式规则">
-    <input type="text" id="documentType" placeholder="适用材料，如：课程大纲">
-    <input type="text" id="ruleSource" placeholder="规则来源，如：2026版课程大纲模板">
-    <div class="save-dialog-actions">
-      <button class="btn btn-outline" onclick="hideSaveDialog()">取消</button>
-      <button class="btn btn-success" onclick="saveSpec()">保存</button>
+<div class="modal" id="renameDialog" role="dialog" aria-modal="true" aria-labelledby="renameDialogTitle">
+  <div class="modal__box">
+    <h3 id="renameDialogTitle">改模板名称</h3>
+    <p>只改名字，规则内容不变。</p>
+    <div class="form-group">
+      <label for="renameInput">名称</label>
+      <input type="text" id="renameInput" maxlength="60" placeholder="如：课程材料格式">
+    </div>
+    <div class="msg" id="renameMsg" hidden></div>
+    <div class="modal__actions">
+      <button class="btn btn--secondary btn--sm" onclick="hideRenameDialog()">取消</button>
+      <button class="btn btn--primary btn--sm" onclick="submitRename()">保存名称</button>
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
 let rules = [];
 let sourceInfo = { source: '', label: '' };
 let profileInfo = {};
-const currentProfileId = {{ (selected_profile.id if selected_profile else '__builtin__') | tojson }};
+const currentProfileId = {{ (selected_profile.id if selected_profile else '') | tojson }};
 let editingIndex = -1;
 let editingSnapshot = null;
+let isDirty = false;
 
-// 页面加载时读取当前规则
+function markDirty() {
+  isDirty = true;
+  setHidden(document.getElementById('dirtyFlag'), false);
+}
+
+function clearDirty() {
+  isDirty = false;
+  setHidden(document.getElementById('dirtyFlag'), true);
+}
+
+window.addEventListener('beforeunload', event => {
+  if (!isDirty) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
+
 window.addEventListener('DOMContentLoaded', loadActiveRules);
 
 function loadActiveRules() {
@@ -236,23 +218,46 @@ function loadActiveRules() {
       if (!data.ok) { showError('加载失败：' + (data.error || '')); return; }
       sourceInfo = { source: data.source, label: data.source_label };
       profileInfo = data.profile || {};
+
       document.getElementById('sourceName').textContent = data.source_label;
-      if (data.source !== 'builtin') {
-        document.getElementById('restoreBtn').style.display = '';
-      }
-      if (data.rules.length === 0) {
+      document.getElementById('sourceMeta').textContent = profileInfo.meta_text
+        || [(data.rules || []).length + ' 条规则'].join('');
+
+      // 主模板是首页的默认值；示例模板可以改名，但不能删。
+      const isBuiltin = !!profileInfo.is_builtin;
+      const isDefault = !!profileInfo.is_default;
+      setHidden(document.getElementById('defaultTag'), !isDefault);
+      setHidden(document.getElementById('sampleTag'), !isBuiltin);
+      setHidden(document.getElementById('makeDefaultBtn'), isDefault);
+      setHidden(document.getElementById('deleteBtn'), isBuiltin);
+
+      if ((data.rules || []).length === 0) {
         document.getElementById('rulesContainer').innerHTML = '<div class="empty-state">暂无规则</div>';
         return;
       }
       rules = data.rules;
+      editingIndex = -1;
       renderCards();
-      document.getElementById('bottomActions').style.display = '';
+      setHidden(document.getElementById('bottomActions'), false);
+      clearDirty();
     })
     .catch(e => showError('网络错误：' + e.message));
 }
 
+function setHidden(el, hidden) {
+  if (!el) return;
+  el.hidden = !!hidden;
+  el.style.display = hidden ? 'none' : '';
+}
+
 document.getElementById('profilePicker').addEventListener('change', event => {
-  window.location.href = '/editor?profile=' + encodeURIComponent(event.target.value);
+  const target = event.target.value;
+  if (isDirty && !confirm('当前有未保存的改动，切换模板会丢掉，继续？')) {
+    event.target.value = currentProfileId;
+    return;
+  }
+  isDirty = false;
+  window.location.href = '/editor?profile=' + encodeURIComponent(target);
 });
 
 function renderCards() {
@@ -271,8 +276,8 @@ function renderCards() {
           <span class="card-section">${esc(r.section || '')}</span>
         </div>
         <div class="card-actions">
-          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();toggleEdit(${i})">编辑</button>
-          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();removeRule(${i})">删除</button>
+          <button class="btn btn--secondary btn--sm" onclick="event.stopPropagation();toggleEdit(${i})">编辑</button>
+          <button class="btn btn--danger btn--sm" onclick="event.stopPropagation();removeRule(${i})">删除</button>
         </div>
       </div>
       <div class="card-desc">${desc}</div>
@@ -282,30 +287,33 @@ function renderCards() {
 }
 
 function formatDesc(r) {
-  const parts = [];
-  // 特殊规则
   if (r.min_words_design != null || r.min_words_paper != null) {
     const parts = [];
-    if (r.min_words_design != null) parts.push('设计类 ' + r.min_words_design + ' 字');
-    if (r.min_words_paper != null) parts.push('论文类 ' + r.min_words_paper + ' 字');
+    if (r.min_words_design != null) parts.push('常规材料 ' + r.min_words_design + ' 字');
+    if (r.min_words_paper != null) parts.push('长篇材料 ' + r.min_words_paper + ' 字');
     return parts.join('，');
   }
   if (r.min_words != null) return '最少 ' + r.min_words + ' 字';
   if (r.min_count != null) return '不少于 ' + r.min_count + ' 篇';
-  if (r.width_mm != null && r.height_mm != null) return r.paper || 'A4' + '（' + r.width_mm + ' x ' + r.height_mm + 'mm）';
+  if (r.width_mm != null && r.height_mm != null) {
+    return (r.paper || 'A4') + '（' + r.width_mm + ' × ' + r.height_mm + 'mm）';
+  }
   if (r.header_text != null) return '内容：' + r.header_text;
 
-  // 字体字号
+  const parts = [];
   if (r.size_name || r.size_pt) {
     let size = r.size_name || '';
-    if (r.size_pt) size += (size ? '' : '') + '(' + r.size_pt + 'pt)';
+    if (r.size_pt) size += '(' + r.size_pt + 'pt)';
     parts.push(size);
   }
   if (r.font) parts.push(r.font);
   if (r.bold === true) parts.push('加粗');
   if (r.bold === false) parts.push('不加粗');
   if (r.alignment) parts.push(r.alignment);
-  if (r.line_spacing_pt) parts.push('行距' + r.line_spacing_pt + 'pt' + (r.line_spacing_type ? ' ' + r.line_spacing_type : ''));
+  if (r.line_spacing_pt) {
+    parts.push('行距' + r.line_spacing_pt + 'pt'
+      + (r.line_spacing_type ? ' ' + r.line_spacing_type : ''));
+  }
   if (r.notes) parts.push(r.notes);
 
   return parts.length > 0 ? parts.join('，') : '(暂无具体要求)';
@@ -313,112 +321,103 @@ function formatDesc(r) {
 
 function editFormHtml(i, r) {
   return `<div class="edit-form show">
-    <div class="form-row">
-      <div class="form-group" style="width:200px;">
-        <label>标识（section）</label>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="ef_section_${i}">标识（section）</label>
         <input value="${esc(r.section||'')}" id="ef_section_${i}">
       </div>
-      <div class="form-group" style="width:200px;">
-        <label>名称（label）</label>
+      <div class="form-group">
+        <label for="ef_label_${i}">名称（label）</label>
         <input value="${esc(r.label||'')}" id="ef_label_${i}">
       </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group" style="width:140px;">
-        <label>字体</label>
+      <div class="form-group">
+        <label for="ef_font_${i}">字体</label>
         <input value="${esc(r.font||'')}" id="ef_font_${i}" placeholder="如：宋体">
       </div>
-      <div class="form-group" style="width:100px;">
-        <label>字号(pt)</label>
+      <div class="form-group">
+        <label for="ef_sizept_${i}">字号（pt）</label>
         <input type="number" step="0.5" value="${r.size_pt!=null?r.size_pt:''}" id="ef_sizept_${i}" placeholder="如：12">
       </div>
-      <div class="form-group" style="width:100px;">
-        <label>字号名</label>
+      <div class="form-group">
+        <label for="ef_sname_${i}">字号名</label>
         <input value="${esc(r.size_name||'')}" id="ef_sname_${i}" placeholder="如：小四">
       </div>
-      <div class="form-group" style="width:80px;">
-        <label>加粗</label>
+      <div class="form-group">
+        <label for="ef_bold_${i}">加粗</label>
         <select id="ef_bold_${i}">
           <option value="" ${r.bold==null?'selected':''}>不强制</option>
           <option value="true" ${r.bold===true?'selected':''}>是</option>
           <option value="false" ${r.bold===false?'selected':''}>否</option>
         </select>
       </div>
-      <div class="form-group" style="width:100px;">
-        <label>对齐</label>
-        <select id="ef_align_${i}">
-          <option value="" ${!r.alignment?'selected':''}>不强制</option>
-          <option value="居中" ${r.alignment==='居中'?'selected':''}>居中</option>
-          <option value="两端对齐" ${r.alignment==='两端对齐'?'selected':''}>两端对齐</option>
-          <option value="左对齐" ${r.alignment==='左对齐'?'selected':''}>左对齐</option>
-        </select>
+      <div class="form-group">
+        <label for="ef_align_${i}">对齐</label>
+      <select id="ef_align_${i}">
+        <option value="" ${!r.alignment?'selected':''}>不强制</option>
+        <option value="居中" ${r.alignment==='居中'?'selected':''}>居中</option>
+        <option value="两端对齐" ${r.alignment==='两端对齐'?'selected':''}>两端对齐</option>
+        <option value="左对齐" ${r.alignment==='左对齐'?'selected':''}>左对齐</option>
+      </select>
       </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group" style="width:100px;">
-        <label>行距(pt)</label>
+      <div class="form-group">
+        <label for="ef_lsp_${i}">行距（pt）</label>
         <input type="number" step="1" value="${r.line_spacing_pt!=null?r.line_spacing_pt:''}" id="ef_lsp_${i}" placeholder="如：22">
       </div>
-      <div class="form-group" style="width:100px;">
-        <label>行距类型</label>
-        <select id="ef_lstype_${i}">
-          <option value="" ${!r.line_spacing_type?'selected':''}>—</option>
-          <option value="固定值" ${r.line_spacing_type==='固定值'?'selected':''}>固定值</option>
-          <option value="多倍" ${r.line_spacing_type==='多倍'?'selected':''}>多倍</option>
-          <option value="最小值" ${r.line_spacing_type==='最小值'?'selected':''}>最小值</option>
-        </select>
+      <div class="form-group">
+        <label for="ef_lstype_${i}">行距类型</label>
+      <select id="ef_lstype_${i}">
+        <option value="" ${!r.line_spacing_type?'selected':''}>—</option>
+        <option value="固定值" ${r.line_spacing_type==='固定值'?'selected':''}>固定值</option>
+        <option value="多倍" ${r.line_spacing_type==='多倍'?'selected':''}>多倍</option>
+        <option value="最小值" ${r.line_spacing_type==='最小值'?'selected':''}>最小值</option>
+      </select>
       </div>
-      <div class="form-group" style="width:120px;">
-        <label>最少字数</label>
-        <input type="number" value="${r.min_words!=null?r.min_words:''}" id="ef_mw_${i}" placeholder="">
+      <div class="form-group">
+        <label for="ef_mw_${i}">最少字数</label>
+        <input type="number" value="${r.min_words!=null?r.min_words:''}" id="ef_mw_${i}">
       </div>
-      <div class="form-group" style="width:120px;">
-        <label>设计类最少字数</label>
-        <input type="number" value="${r.min_words_design!=null?r.min_words_design:''}" id="ef_mwd_${i}" placeholder="">
+      <div class="form-group">
+        <label for="ef_mwd_${i}">常规材料最少字数</label>
+        <input type="number" value="${r.min_words_design!=null?r.min_words_design:''}" id="ef_mwd_${i}">
       </div>
-      <div class="form-group" style="width:120px;">
-        <label>论文类最少字数</label>
-        <input type="number" value="${r.min_words_paper!=null?r.min_words_paper:''}" id="ef_mwp_${i}" placeholder="">
+      <div class="form-group">
+        <label for="ef_mwp_${i}">长篇材料最少字数</label>
+        <input type="number" value="${r.min_words_paper!=null?r.min_words_paper:''}" id="ef_mwp_${i}">
       </div>
-      <div class="form-group" style="width:120px;">
-        <label>最少篇数</label>
-        <input type="number" value="${r.min_count!=null?r.min_count:''}" id="ef_mc_${i}" placeholder="">
+      <div class="form-group">
+        <label for="ef_mc_${i}">最少篇数</label>
+        <input type="number" value="${r.min_count!=null?r.min_count:''}" id="ef_mc_${i}">
       </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group" style="width:140px;">
-        <label>纸张</label>
+      <div class="form-group">
+        <label for="ef_paper_${i}">纸张</label>
         <input value="${esc(r.paper||'')}" id="ef_paper_${i}" placeholder="如：A4">
       </div>
-      <div class="form-group" style="width:80px;">
-        <label>宽(mm)</label>
+      <div class="form-group">
+        <label for="ef_wmm_${i}">宽（mm）</label>
         <input type="number" value="${r.width_mm!=null?r.width_mm:''}" id="ef_wmm_${i}">
       </div>
-      <div class="form-group" style="width:80px;">
-        <label>高(mm)</label>
+      <div class="form-group">
+        <label for="ef_hmm_${i}">高（mm）</label>
         <input type="number" value="${r.height_mm!=null?r.height_mm:''}" id="ef_hmm_${i}">
       </div>
-      <div class="form-group" style="width:200px;">
-        <label>页眉内容</label>
-        <input value="${esc(r.header_text||'')}" id="ef_ht_${i}" placeholder="">
-      </div>
-    </div>
-    <div class="form-row">
       <div class="form-group w-full">
-        <label>说明/备注</label>
+        <label for="ef_ht_${i}">页眉内容</label>
+        <input value="${esc(r.header_text||'')}" id="ef_ht_${i}">
+      </div>
+      <div class="form-group w-full">
+        <label for="ef_notes_${i}">说明 / 备注</label>
         <input value="${esc(r.notes||'')}" id="ef_notes_${i}" placeholder="特殊说明">
       </div>
     </div>
     <div class="form-actions">
-      <button class="btn btn-ghost btn-sm" onclick="toggleEdit(${i})">取消</button>
-      <button class="btn btn-primary btn-sm" onclick="saveEdit(${i})">确定</button>
+      <button class="btn btn--ghost btn--sm" onclick="toggleEdit(${i})">取消</button>
+      <button class="btn btn--primary btn--sm" onclick="saveEdit(${i})">确定</button>
     </div>
   </div>`;
 }
 
 function toggleEdit(i) {
   if (editingIndex === i) {
-    // 取消：还原快照
     if (editingSnapshot) { rules[i] = editingSnapshot; editingSnapshot = null; }
     editingIndex = -1;
   } else {
@@ -451,23 +450,25 @@ function saveEdit(i) {
     header_text: g('ef_ht').value.trim() || null,
     notes: g('ef_notes').value.trim() || null,
   };
-  // 保留原规则中表单没有的字段（如 locked, source, min_words_design, min_words_paper）
+  // 保留表单之外的原始字段（如 locked、source）
   Object.keys(original).forEach(k => {
     if (!(k in updated)) updated[k] = original[k];
   });
-  // 清理 null 值
+  // 去掉空值，避免写出一堆 null
   Object.keys(updated).forEach(k => { if (updated[k] === null) delete updated[k]; });
   rules[i] = updated;
   editingIndex = -1;
   editingSnapshot = null;
   renderCards();
+  markDirty();
 }
 
 function addRule() {
   rules.push({ section: '', label: '' });
   editingIndex = rules.length - 1;
   renderCards();
-  window.scrollTo({top: document.getElementById('rulesContainer').scrollHeight, behavior: 'smooth'});
+  markDirty();
+  window.scrollTo({ top: document.getElementById('rulesContainer').scrollHeight, behavior: 'smooth' });
 }
 
 function removeRule(i) {
@@ -476,9 +477,26 @@ function removeRule(i) {
   if (editingIndex === i) editingIndex = -1;
   else if (editingIndex > i) editingIndex--;
   renderCards();
+  markDirty();
 }
 
-// 保存
+function deleteCurrentProfile() {
+  if (profileInfo.is_builtin) return;
+  const label = (sourceInfo && sourceInfo.label) || '该模板';
+  if (!confirm('确定删除「' + label + '」？删除后不可恢复。')) return;
+  fetch('/editor/delete/' + encodeURIComponent(currentProfileId), { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        isDirty = false;
+        window.location.href = '/editor';
+      } else {
+        alert('删除失败：' + (data.error || '未知错误'));
+      }
+    })
+    .catch(e => alert('请求失败：' + e.message));
+}
+
 function showSaveDialog() {
   if (rules.length === 0) { alert('暂无规则可保存'); return; }
   const defaultName = sourceInfo.source === 'builtin' ? '自定义规则' : sourceInfo.label;
@@ -490,6 +508,19 @@ function showSaveDialog() {
 }
 function hideSaveDialog() { document.getElementById('saveDialog').classList.remove('show'); }
 
+document.getElementById('saveDialog').addEventListener('click', event => {
+  if (event.target === event.currentTarget) hideSaveDialog();
+});
+document.getElementById('renameDialog').addEventListener('click', event => {
+  if (event.target === event.currentTarget) hideRenameDialog();
+});
+document.getElementById('renameInput').addEventListener('keydown', event => {
+  if (event.key === 'Enter') submitRename();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { hideSaveDialog(); hideRenameDialog(); }
+});
+
 function saveSpec() {
   const name = document.getElementById('specName').value.trim();
   const documentType = document.getElementById('documentType').value.trim();
@@ -497,7 +528,7 @@ function saveSpec() {
   if (!name) { alert('请输入规范名称'); return; }
   fetch('/editor/save', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name: name,
       rules: rules,
@@ -514,6 +545,7 @@ function saveSpec() {
   .then(data => {
     if (data.ok) {
       hideSaveDialog();
+      isDirty = false;
       window.location.href = '/editor?profile=' + encodeURIComponent(data.profile_id);
     } else {
       alert('保存失败：' + (data.error || '未知错误'));
@@ -522,27 +554,60 @@ function saveSpec() {
   .catch(e => alert('请求失败：' + e.message));
 }
 
-// 恢复内置
-function restoreBuiltin() {
-  if (!confirm('确定恢复为内置规则？当前自定义规则不会被删除。')) return;
-  window.location.href = '/editor?profile=__builtin__';
+function setAsDefault() {
+  fetch('/editor/set-default', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profile_id: currentProfileId })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) { alert('设置失败：' + (data.error || '未知错误')); return; }
+    // 重新载入，让徽标和下拉顺序跟着更新。
+    isDirty = false;
+    window.location.href = '/editor?profile=' + encodeURIComponent(currentProfileId);
+  })
+  .catch(e => alert('请求失败：' + e.message));
 }
 
-// AI 导入
+function showRenameDialog() {
+  document.getElementById('renameInput').value = (sourceInfo && sourceInfo.label) || '';
+  setHidden(document.getElementById('renameMsg'), true);
+  document.getElementById('renameDialog').classList.add('show');
+  document.getElementById('renameInput').focus();
+  document.getElementById('renameInput').select();
+}
+
+function hideRenameDialog() {
+  document.getElementById('renameDialog').classList.remove('show');
+}
+
+function submitRename() {
+  const name = document.getElementById('renameInput').value.trim();
+  const msgEl = document.getElementById('renameMsg');
+  if (!name) { showMsg(msgEl, 'error', '名称不能为空'); return; }
+  fetch('/editor/rename', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profile_id: currentProfileId, name: name })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) { showMsg(msgEl, 'error', data.error || '改名失败'); return; }
+    isDirty = false;
+    window.location.href = '/editor?profile=' + encodeURIComponent(currentProfileId);
+  })
+  .catch(e => showMsg(msgEl, 'error', '请求失败：' + e.message));
+}
+
 const PROMPT_TEXT = document.getElementById('promptBox').textContent;
-
-function toggleCollapse(header) {
-  const body = header.nextElementSibling;
-  const arrow = header.querySelector('.arrow');
-  body.classList.toggle('show');
-  arrow.classList.toggle('open');
-}
 
 function copyPrompt() {
   navigator.clipboard.writeText(PROMPT_TEXT).then(() => {
     const msg = document.getElementById('copyMsg');
+    msg.hidden = false;
     msg.style.display = 'inline';
-    setTimeout(() => msg.style.display = 'none', 2000);
+    setTimeout(() => { msg.hidden = true; msg.style.display = ''; }, 2000);
   });
 }
 
@@ -550,7 +615,7 @@ function parseJson() {
   const raw = document.getElementById('jsonInput').value.trim();
   const msgEl = document.getElementById('parseMsg');
   if (!raw) { showMsg(msgEl, 'error', '请先粘贴 AI 返回的内容'); return; }
-  let text = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+  const text = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
   let data;
   try { data = JSON.parse(text); } catch(e) {
     showMsg(msgEl, 'error', 'JSON 解析失败：' + e.message);
@@ -560,29 +625,32 @@ function parseJson() {
     showMsg(msgEl, 'error', '格式错误：应该是 JSON 数组');
     return;
   }
-  const valid = data.filter(r => r.section && r.label);
+  const valid = data.filter(r => r && r.section && r.label);
   if (valid.length === 0) {
     showMsg(msgEl, 'error', '没有有效规则（需要 section 和 label）');
     return;
   }
+  if (rules.length && !confirm('AI 的结果会替换下面现有的 ' + rules.length + ' 条规则。继续？')) return;
   rules = valid;
   editingIndex = -1;
   renderCards();
-  document.getElementById('bottomActions').style.display = '';
-  showMsg(msgEl, 'success', '已导入 ' + valid.length + ' 条规则，请审核后保存');
-  window.scrollTo({top: 0, behavior: 'smooth'});
+  setHidden(document.getElementById('bottomActions'), false);
+  markDirty();
+  showMsg(msgEl, 'success', '已载入 ' + valid.length + ' 条规则，还没保存。核对后点最下面的「保存为新模板」。');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function showMsg(el, type, text) {
   el.className = 'msg ' + type;
   el.textContent = text;
+  el.hidden = false;
   el.style.display = 'block';
 }
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function showError(msg) {
-  document.getElementById('rulesContainer').innerHTML = '<div class="empty-state" style="color:#c62828;">' + esc(msg) + '</div>';
+  document.getElementById('rulesContainer').innerHTML =
+    '<div class="empty-state" style="color:var(--accent-ink);">' + esc(msg) + '</div>';
 }
 </script>
-</body>
-</html>
+{% endblock %}

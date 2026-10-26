@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 {% set active_page = "check" %}
-{% block title %}文检 · Word 文档格式检查{% endblock %}
+{% block title %}格式检查器 · Word 文档格式检查{% endblock %}
 
 {% block body %}
 <main class="page-shell">
   <div class="hero-grid">
     <section class="hero-copy" aria-labelledby="hero-title">
       <p class="eyebrow">LOCAL WORD FORMAT REVIEW</p>
-      <h1 class="display-title" id="hero-title">先把格式问题，<br>交给规则找出来。</h1>
-      <p class="lede">选择一套明确的格式规则，放入 Word 文档，查看哪里不符合、应该改成什么。内容判断仍由人完成。</p>
+      <h1 class="display-title" id="hero-title">检查文档格式</h1>
+      <p class="lede">上传 Word 文档，按选定的规则逐项比对，列出不符合的地方。</p>
       <ul class="hero-points" aria-label="工具特点">
         <li>文件仅在本机处理</li><li>支持多文件检查</li><li>结果按轻重分类</li><li>规则可以自行维护</li>
       </ul>
     </section>
 
     <section class="workspace" aria-labelledby="workspace-title">
-      <div class="workspace__head"><h2 id="workspace-title">新建一次格式检查</h2><p>按照三个步骤完成。工具不会修改原文件。</p></div>
+      <div class="workspace__head"><h2 id="workspace-title">检查文档</h2><p>三步。不改动原文件。</p></div>
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}<div class="flash-stack" style="padding:18px 28px 0">{% for category, msg in messages %}<div class="flash {{ category }}">{{ msg }}</div>{% endfor %}</div>{% endif %}
       {% endwith %}
@@ -24,23 +24,31 @@
         <div class="step">
           <span class="step__number">1</span>
           <div class="step__body">
-            <h3>选择检查规则</h3>
-            <label class="field-label" for="profileSelect">这份文档应该遵守哪套格式？</label>
+            <h3>选择模板</h3>
+            {% if not has_own_profile %}
+            <div class="notice-banner">
+              <strong>还没有自己的模板。</strong>
+              下面这套是系统自带的示例，用的是别的材料的格式要求，直接拿去查你的文档会报一堆不相干的错。
+              <a href="{{ url_for('editor') }}">先用 AI 建一套</a>。
+            </div>
+            {% endif %}
+            <label class="field-label" for="profileSelect">用哪套模板的规则检查？</label>
             <select class="select" id="profileSelect" name="profile_id">
               {% for profile in profiles %}
-              <option value="{{ profile.id }}" {% if selected_profile and selected_profile.id == profile.id %}selected{% endif %} data-name="{{ profile.name }}" data-description="{{ profile.description }}" data-meta="{{ profile.rule_count }} 条规则 · {{ profile.source }}">{{ profile.name }}</option>
+              <option value="{{ profile.id }}" {% if selected_profile and selected_profile.id == profile.id %}selected{% endif %} data-name="{{ profile.name }}" data-meta="{{ profile.meta_text }}">{% if profile.is_default %}★ {% endif %}{{ profile.name }}</option>
               {% endfor %}
             </select>
             {% if selected_profile %}
-            <div class="profile-summary" id="profileSummary"><strong id="profileSummaryName">{{ selected_profile.name }}</strong><span id="profileSummaryDescription">{{ selected_profile.description }}</span><br><span id="profileSummaryMeta">{{ selected_profile.rule_count }} 条规则 · {{ selected_profile.source }}</span></div>
+            <div class="profile-summary" id="profileSummary"><strong id="profileSummaryName">{{ selected_profile.name }}</strong><span id="profileSummaryMeta">{{ selected_profile.meta_text }}</span></div>
             {% endif %}
+            <p class="field-hint">主模板（★）是默认选中的。去<a href="{{ url_for('editor') }}">模板规则</a>新建模板、改规则、换主模板。</p>
           </div>
         </div>
 
         <div class="step">
           <span class="step__number">2</span>
           <div class="step__body">
-            <h3>添加需要检查的文档</h3>
+            <h3>添加文档</h3>
             <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-controls="fileInput">
               <div class="drop-zone__inner">
                 <span class="drop-zone__icon" aria-hidden="true"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></span>
@@ -50,6 +58,7 @@
             </div>
             <input type="file" id="fileInput" name="files" multiple accept=".docx{% if old_doc_supported %},.doc{% endif %}" hidden>
             <div class="file-list" id="fileList" aria-live="polite"></div>
+            <p class="file-notice" id="fileNotice" hidden></p>
           </div>
         </div>
 
@@ -58,7 +67,7 @@
           <div class="step__body">
             <h3>开始检查</h3>
             <button type="submit" class="btn btn--primary btn--full" id="submitBtn" disabled><span>检查所选文档</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
-            <p class="action-note">上传文件会在本次检查结束后清理；报告只在当前程序运行期间短期保留。</p>
+            <p class="action-note">检查完自动删除上传文件；报告只在本次运行期间保留。</p>
           </div>
         </div>
       </form>
@@ -66,11 +75,11 @@
   </div>
 
   <section class="section-block" aria-labelledby="scope-title">
-    <div class="section-heading"><h2 id="scope-title">它负责找问题，不替你下结论。</h2><p>不同材料必须选择不同规则。没有明确规则时，工具只能检查通用排版，不能宣称文档“完全正确”。</p></div>
+    <div class="section-heading"><h2 id="scope-title">检查范围</h2><p>工具按规则逐项比对，不判断内容对错。</p></div>
     <div class="feature-grid">
-      <article class="feature-card"><span class="feature-card__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8M8 11h6"/></svg></span><h3>规则模板</h3><p>毕业论文只是其中一套模板。课程材料、申报书或公文可以建立各自规则。</p></article>
-      <article class="feature-card"><span class="feature-card__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 7v5c0 5 3.4 8 8 9 4.6-1 8-4 8-9V7z"/><path d="m9 12 2 2 4-4"/></svg></span><h3>本地处理</h3><p>文档不发送到外部平台，也不写入公开仓库；仍建议使用脱敏副本检查。</p></article>
-      <article class="feature-card"><span class="feature-card__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><h3>可复核报告</h3><p>每个问题保留位置、规则要求和当前情况，方便回到 Word 逐项修改。</p></article>
+      <article class="feature-card"><span class="feature-card__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8M8 11h6"/></svg></span><h3>模板自建</h3><p>把规范交给 AI 整理成规则，贴回来存成新模板；也可以照示例模板改。</p></article>
+      <article class="feature-card"><span class="feature-card__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 7v5c0 5 3.4 8 8 9 4.6-1 8-4 8-9V7z"/><path d="m9 12 2 2 4-4"/></svg></span><h3>本机运行</h3><p>文档在本机处理，不上传，不联网。建议用脱敏副本。</p></article>
+      <article class="feature-card"><span class="feature-card__icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><h3>报告可导出</h3><p>每条问题写明位置、要求、现状，可下载 HTML 报告逐条对照。</p></article>
     </div>
   </section>
 </main>
@@ -84,6 +93,7 @@ const fileList = document.getElementById('fileList');
 const submitBtn = document.getElementById('submitBtn');
 const profileSelect = document.getElementById('profileSelect');
 const maxFiles = {{ max_files }};
+const maxTotalMB = {{ max_total_mb }};
 const oldDocSupported = {{ old_doc_supported | tojson }};
 let selectedFiles = [];
 
@@ -96,17 +106,41 @@ dropZone.addEventListener('drop', event => { event.preventDefault(); dropZone.cl
 fileInput.addEventListener('change', () => addFiles(fileInput.files));
 
 function addFiles(files) {
+  let dropped = 0;
   for (const file of files) {
     const extension = file.name.split('.').pop().toLowerCase();
     const allowed = extension === 'docx' || (extension === 'doc' && oldDocSupported);
-    if (allowed && !selectedFiles.some(item => item.name === file.name && item.size === file.size) && selectedFiles.length < maxFiles) selectedFiles.push(file);
+    if (!allowed) continue;
+    if (selectedFiles.some(item => item.name === file.name && item.size === file.size)) continue;
+    if (selectedFiles.length >= maxFiles) { dropped += 1; continue; }
+    selectedFiles.push(file);
   }
   renderFiles();
+  if (dropped) {
+    const notice = document.getElementById('fileNotice');
+    notice.hidden = false;
+    notice.classList.add('is-warn');
+    notice.textContent = `一次最多 ${maxFiles} 个文件，多出的 ${dropped} 个没有加进来。`;
+  }
 }
 function removeFile(index) { selectedFiles.splice(index, 1); renderFiles(); }
 function renderFiles() {
   fileList.innerHTML = selectedFiles.map((file, index) => `<div class="file-item"><span class="file-item__name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)} · ${formatSize(file.size)}</span><button type="button" onclick="removeFile(${index})" aria-label="移除 ${escapeHtml(file.name)}">×</button></div>`).join('');
-  submitBtn.disabled = selectedFiles.length === 0;
+
+  const total = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+  const over = total > maxTotalMB * 1024 * 1024;
+  const notice = document.getElementById('fileNotice');
+  notice.classList.toggle('is-warn', over);
+  if (!selectedFiles.length) {
+    notice.hidden = true;
+  } else {
+    notice.hidden = false;
+    notice.textContent = over
+      ? `合计 ${formatSize(total)}，超过单次 ${maxTotalMB} MB 上限。请减掉几个，或分两批检查。`
+      : `已选 ${selectedFiles.length} 个，合计 ${formatSize(total)}。`;
+  }
+
+  submitBtn.disabled = selectedFiles.length === 0 || over;
 }
 function formatSize(bytes) { return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`; }
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
@@ -114,7 +148,6 @@ function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, char => ({
 profileSelect.addEventListener('change', () => {
   const option = profileSelect.options[profileSelect.selectedIndex];
   document.getElementById('profileSummaryName').textContent = option.dataset.name || option.textContent;
-  document.getElementById('profileSummaryDescription').textContent = option.dataset.description || '';
   document.getElementById('profileSummaryMeta').textContent = option.dataset.meta || '';
 });
 document.getElementById('checkForm').addEventListener('submit', () => {

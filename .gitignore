@@ -1,7 +1,11 @@
 venv/
+venv_*/
 __pycache__/
 *.pyc
 uploads/
 reports/
 .DS_Store
 *.db
+
+# 本机偏好：记录主模板是哪个，属于使用者自己的设置，不进版本库
+settings.json

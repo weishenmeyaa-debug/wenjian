@@ -3,22 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="light">
-  <title>{% block title %}文检 · Word 文档格式检查{% endblock %}</title>
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}格式检查器 · Word 文档格式检查{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   {% block head %}{% endblock %}
 </head>
 <body>
   <header class="site-header">
     <div class="site-header__inner">
-      <a class="brand" href="{{ url_for('index') }}" aria-label="返回文检首页">
-        <span class="brand__mark" aria-hidden="true">文</span>
-        <span class="brand__text"><strong>文检</strong><span>WORD FORMAT REVIEW</span></span>
+      <a class="brand" href="{{ url_for('index') }}" aria-label="返回首页">
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4.2 4.2L16 5.6"/></svg>
+        </span>
+        <span class="brand__text"><strong>格式检查器</strong></span>
       </a>
       <nav class="site-nav" aria-label="主要导航">
-        <a href="{{ url_for('index') }}" {% if active_page == 'check' %}aria-current="page"{% endif %}>开始检查</a>
-        <a href="{{ url_for('editor') }}" {% if active_page == 'rules' %}aria-current="page"{% endif %}>规则库</a>
-        <a href="{{ url_for('examples') }}" {% if active_page == 'examples' %}aria-current="page"{% endif %}>格式参考</a>
+        <a href="{{ url_for('index', profile=nav_profile_id) }}" {% if active_page == 'check' %}aria-current="page"{% endif %}>开始检查</a>
+        <a href="{{ url_for('editor', profile=nav_profile_id) }}" {% if active_page == 'rules' %}aria-current="page"{% endif %}>模板规则</a>
+        <a href="{{ url_for('examples', profile=nav_profile_id) }}" {% if active_page == 'examples' %}aria-current="page"{% endif %}>格式参考</a>
       </nav>
     </div>
   </header>
@@ -27,8 +29,8 @@
 
   <footer class="site-footer">
     <div class="site-footer__inner">
-      <span>本地处理 · 不连接外部账号 · 检查结果需人工复核</span>
-      <span>文检不是代写或内容生成工具，只检查已选规则能够识别的格式问题。</span>
+      <span>本机运行 · 不上传文件 · 结果需人工复核</span>
+      <span>只检查格式，不检查内容。</span>
     </div>
   </footer>
   {% block scripts %}{% endblock %}

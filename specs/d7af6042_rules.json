@@ -1,232 +1,232 @@
 {
   "profile": {
-    "name": "本科毕业设计（论文）本地规则",
-    "document_type": "本科毕业设计（论文）",
-    "description": "根据本地规范整理的规则副本，使用前仍需对照正式文件",
-    "source": "本地规则文件",
+    "name": "我的格式模板",
+    "document_type": "Word 文档",
+    "description": "根据你上传的格式规范整理出的规则，用前对照正式文件核一遍。",
+    "source": "你保存的",
     "version": "1.0",
     "updated_at": "2026-09-18",
     "enabled_checks": null
   },
   "rules": [
-  {
-    "section": "word_count",
-    "label": "正文字数",
-    "min_words_design": 7000,
-    "min_words_paper": 10000,
-    "source": "P20"
-  },
-  {
-    "section": "cover_title",
-    "label": "封面题目",
-    "font": "宋体",
-    "size_pt": 16,
-    "size_name": "三号",
-    "bold": true,
-    "alignment": "居中",
-    "source": "P761"
-  },
-  {
-    "section": "cover_field",
-    "label": "封面信息（姓名/指导/日期等）",
-    "font": "宋体",
-    "size_pt": 16,
-    "size_name": "三号",
-    "bold": null,
-    "alignment": "居中",
-    "source": "P49"
-  },
-  {
-    "section": "abstract_zh_title",
-    "label": "中文摘要标题",
-    "font": "黑体",
-    "size_pt": 15,
-    "size_name": "小三号",
-    "bold": null,
-    "alignment": "居中",
-    "source": "P54"
-  },
-  {
-    "section": "keywords_zh",
-    "label": "中文关键词",
-    "font": "黑体",
-    "size_pt": 12,
-    "size_name": "小四号",
-    "bold": null,
-    "alignment": null,
-    "source": "P54"
-  },
-  {
-    "section": "abstract_zh_body",
-    "label": "中文摘要正文",
-    "font": "楷体",
-    "size_pt": 12,
-    "size_name": "小四号",
-    "bold": null,
-    "alignment": null,
-    "source": "P54"
-  },
-  {
-    "section": "abstract_en_title",
-    "label": "英文摘要标题 Abstract",
-    "font": "Arial Black",
-    "size_pt": 15,
-    "size_name": "小三号",
-    "bold": null,
-    "alignment": "居中",
-    "source": "P54"
-  },
-  {
-    "section": "keywords_en",
-    "label": "英文关键词 Key words",
-    "font": "Arial Black",
-    "size_pt": 12,
-    "size_name": "小四号",
-    "bold": null,
-    "alignment": null,
-    "source": "P54"
-  },
-  {
-    "section": "abstract_en_body",
-    "label": "英文摘要正文",
-    "font": "Times New Roman",
-    "size_pt": 12,
-    "size_name": "小四号",
-    "bold": null,
-    "alignment": null,
-    "source": "P54"
-  },
-  {
-    "section": "abstract_word_count",
-    "label": "摘要字数",
-    "min_words": 400,
-    "source": "P55"
-  },
-  {
-    "section": "toc_title",
-    "label": "目录标题",
-    "font": "黑体",
-    "size_pt": 15,
-    "size_name": "小三号",
-    "bold": null,
-    "alignment": "居中",
-    "source": "P61"
-  },
-  {
-    "section": "level1_title",
-    "label": "一级标题",
-    "font": "宋体",
-    "size_pt": 15,
-    "size_name": "小三号",
-    "bold": true,
-    "alignment": null,
-    "source": "P82"
-  },
-  {
-    "section": "level2_title",
-    "label": "二级标题",
-    "font": "宋体",
-    "size_pt": 14,
-    "size_name": "四号",
-    "bold": true,
-    "alignment": null,
-    "source": "P83"
-  },
-  {
-    "section": "level3_title",
-    "label": "三级标题",
-    "font": "宋体",
-    "size_pt": 12,
-    "size_name": "小四号",
-    "bold": true,
-    "alignment": null,
-    "source": "P84"
-  },
-  {
-    "section": "body_text",
-    "label": "正文",
-    "font": "宋体",
-    "size_pt": 12,
-    "size_name": "小四号",
-    "bold": false,
-    "alignment": null,
-    "source": "P85"
-  },
-  {
-    "section": "figure_caption",
-    "label": "图题注",
-    "font": "宋体",
-    "size_pt": 10.5,
-    "size_name": "五号",
-    "bold": false,
-    "alignment": "居中",
-    "source": "P89"
-  },
-  {
-    "section": "table_caption",
-    "label": "表题注",
-    "font": "宋体",
-    "size_pt": 10.5,
-    "size_name": "五号",
-    "bold": false,
-    "alignment": "居中",
-    "source": "P91"
-  },
-  {
-    "section": "line_spacing_body",
-    "label": "正文及标题行间距",
-    "line_spacing_pt": 22,
-    "line_spacing_type": "固定值",
-    "source": "P788"
-  },
-  {
-    "section": "footnote",
-    "label": "脚注",
-    "font": "宋体",
-    "size_pt": 9,
-    "size_name": "小五号",
-    "bold": false,
-    "alignment": null,
-    "source": "P119"
-  },
-  {
-    "section": "reference_count",
-    "label": "参考文献数量",
-    "min_count": 20,
-    "source": "P121"
-  },
-  {
-    "section": "reference_foreign_count",
-    "label": "外文文献数量",
-    "min_count": 3,
-    "source": "P121"
-  },
-  {
-    "section": "page_number",
-    "label": "页码",
-    "font": null,
-    "size_pt": 9,
-    "size_name": "小五号",
-    "alignment": "居中",
-    "source": "P180"
-  },
-  {
-    "section": "page_header",
-    "label": "页眉",
-    "font": "宋体",
-    "size_pt": 9,
-    "size_name": "小五号",
-    "alignment": "居中",
-    "header_text": "XXX大学毕业设计（论文）",
-    "source": "P182"
-  },
-  {
-    "section": "page_setup",
-    "label": "页面设置",
-    "paper": "A4",
-    "width_mm": 210,
-    "height_mm": 297,
-    "source": "P184"
-  }
+    {
+      "section": "word_count",
+      "label": "正文字数",
+      "min_words_design": 7000,
+      "min_words_paper": 10000,
+      "source": "P20"
+    },
+    {
+      "section": "cover_title",
+      "label": "封面题目",
+      "font": "宋体",
+      "size_pt": 16,
+      "size_name": "三号",
+      "bold": true,
+      "alignment": "居中",
+      "source": "P761"
+    },
+    {
+      "section": "cover_field",
+      "label": "封面信息（姓名/指导/日期等）",
+      "font": "宋体",
+      "size_pt": 16,
+      "size_name": "三号",
+      "bold": null,
+      "alignment": "居中",
+      "source": "P49"
+    },
+    {
+      "section": "abstract_zh_title",
+      "label": "中文摘要标题",
+      "font": "黑体",
+      "size_pt": 15,
+      "size_name": "小三号",
+      "bold": null,
+      "alignment": "居中",
+      "source": "P54"
+    },
+    {
+      "section": "keywords_zh",
+      "label": "中文关键词",
+      "font": "黑体",
+      "size_pt": 12,
+      "size_name": "小四号",
+      "bold": null,
+      "alignment": null,
+      "source": "P54"
+    },
+    {
+      "section": "abstract_zh_body",
+      "label": "中文摘要正文",
+      "font": "楷体",
+      "size_pt": 12,
+      "size_name": "小四号",
+      "bold": null,
+      "alignment": null,
+      "source": "P54"
+    },
+    {
+      "section": "abstract_en_title",
+      "label": "英文摘要标题 Abstract",
+      "font": "Arial Black",
+      "size_pt": 15,
+      "size_name": "小三号",
+      "bold": null,
+      "alignment": "居中",
+      "source": "P54"
+    },
+    {
+      "section": "keywords_en",
+      "label": "英文关键词 Key words",
+      "font": "Arial Black",
+      "size_pt": 12,
+      "size_name": "小四号",
+      "bold": null,
+      "alignment": null,
+      "source": "P54"
+    },
+    {
+      "section": "abstract_en_body",
+      "label": "英文摘要正文",
+      "font": "Times New Roman",
+      "size_pt": 12,
+      "size_name": "小四号",
+      "bold": null,
+      "alignment": null,
+      "source": "P54"
+    },
+    {
+      "section": "abstract_word_count",
+      "label": "摘要字数",
+      "min_words": 400,
+      "source": "P55"
+    },
+    {
+      "section": "toc_title",
+      "label": "目录标题",
+      "font": "黑体",
+      "size_pt": 15,
+      "size_name": "小三号",
+      "bold": null,
+      "alignment": "居中",
+      "source": "P61"
+    },
+    {
+      "section": "level1_title",
+      "label": "一级标题",
+      "font": "宋体",
+      "size_pt": 15,
+      "size_name": "小三号",
+      "bold": true,
+      "alignment": null,
+      "source": "P82"
+    },
+    {
+      "section": "level2_title",
+      "label": "二级标题",
+      "font": "宋体",
+      "size_pt": 14,
+      "size_name": "四号",
+      "bold": true,
+      "alignment": null,
+      "source": "P83"
+    },
+    {
+      "section": "level3_title",
+      "label": "三级标题",
+      "font": "宋体",
+      "size_pt": 12,
+      "size_name": "小四号",
+      "bold": true,
+      "alignment": null,
+      "source": "P84"
+    },
+    {
+      "section": "body_text",
+      "label": "正文",
+      "font": "宋体",
+      "size_pt": 12,
+      "size_name": "小四号",
+      "bold": false,
+      "alignment": null,
+      "source": "P85"
+    },
+    {
+      "section": "figure_caption",
+      "label": "图题注",
+      "font": "宋体",
+      "size_pt": 10.5,
+      "size_name": "五号",
+      "bold": false,
+      "alignment": "居中",
+      "source": "P89"
+    },
+    {
+      "section": "table_caption",
+      "label": "表题注",
+      "font": "宋体",
+      "size_pt": 10.5,
+      "size_name": "五号",
+      "bold": false,
+      "alignment": "居中",
+      "source": "P91"
+    },
+    {
+      "section": "line_spacing_body",
+      "label": "正文及标题行间距",
+      "line_spacing_pt": 22,
+      "line_spacing_type": "固定值",
+      "source": "P788"
+    },
+    {
+      "section": "footnote",
+      "label": "脚注",
+      "font": "宋体",
+      "size_pt": 9,
+      "size_name": "小五号",
+      "bold": false,
+      "alignment": null,
+      "source": "P119"
+    },
+    {
+      "section": "reference_count",
+      "label": "参考文献数量",
+      "min_count": 20,
+      "source": "P121"
+    },
+    {
+      "section": "reference_foreign_count",
+      "label": "外文文献数量",
+      "min_count": 3,
+      "source": "P121"
+    },
+    {
+      "section": "page_number",
+      "label": "页码",
+      "font": null,
+      "size_pt": 9,
+      "size_name": "小五号",
+      "alignment": "居中",
+      "source": "P180"
+    },
+    {
+      "section": "page_header",
+      "label": "页眉",
+      "font": "宋体",
+      "size_pt": 9,
+      "size_name": "小五号",
+      "alignment": "居中",
+      "header_text": null,
+      "source": "P182"
+    },
+    {
+      "section": "page_setup",
+      "label": "页面设置",
+      "paper": "A4",
+      "width_mm": 210,
+      "height_mm": 297,
+      "source": "P184"
+    }
   ]
 }

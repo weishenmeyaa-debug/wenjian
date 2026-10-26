@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul 2>&1
-title 文检 - Word 文档格式检查
+title 规检 - Word 文档格式检查
 cd /d "%~dp0"
 
 :: 检测 Python
@@ -49,7 +49,7 @@ if %errorlevel% equ 0 (
 
 :: 启动
 echo.
-echo ✅ 文检启动成功！浏览器将自动打开...
+echo ✅ 规检启动成功！浏览器将自动打开...
 echo    如果没有自动打开，请访问: http://127.0.0.1:%PORT%
 echo    关闭此窗口即可停止程序
 echo.

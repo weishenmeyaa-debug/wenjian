@@ -1,22 +1,15 @@
 {% extends "base.html" %}
 {% set active_page = "examples" %}
-{% block title %}格式参考 · 文检{% endblock %}
-
-{% block head %}
-<style>
-.reference-nav{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}.reference-nav a{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;text-decoration:none;font-size:13px;font-weight:700}.reference-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.reference-card{padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}.reference-card--wide{grid-column:1/-1}.reference-card h2{margin:0 0 8px;font-size:20px}.reference-card p,.reference-card li{color:#5f5e57}.format-sample{margin:10px 0;padding:14px 16px;border-radius:10px;background:#f7f4ed}.format-sample strong{display:block;margin-bottom:4px;color:var(--ink);font-size:12px}.format-sample--wrong{background:var(--accent-soft)}.rule-table{width:100%;border-collapse:collapse}.rule-table th,.rule-table td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.rule-table th{color:var(--muted);font-size:12px}.notice{padding:14px 16px;border-radius:10px;background:var(--warning-soft);color:#6e501f}@media(max-width:720px){.reference-grid{grid-template-columns:1fr}.reference-card--wide{grid-column:auto}.rule-table{display:block;overflow:auto}}
-</style>
-{% endblock %}
+{% block title %}格式参考 · 格式检查器{% endblock %}
 
 {% block body %}
 <main class="page-shell page-shell--narrow">
   <header class="page-head">
     <div>
       <p class="eyebrow">FORMAT REFERENCE</p>
-      <h1 class="page-title">当前规则的格式参考</h1>
-      <p class="lede">展示容易混淆的写法，便于人工复核；它不是完整规范，也不替代正式文件。</p>
+      <h1 class="page-title">当前模板的格式参考案例</h1>
+      <p class="lede">本页为系统读取模板规则后自动生成的参考案例及常用格式案例</p>
     </div>
-    <div class="page-actions"><a class="btn btn--secondary" href="{{ url_for('index', profile=profile.id if profile else none) }}">使用这套规则检查</a></div>
   </header>
 
   {% if profile %}
@@ -32,40 +25,53 @@
 
   <div class="reference-grid">
     <section class="reference-card" id="typography">
+      <p class="src-tag src-tag--tpl">来自模板</p>
       <h2>文字与段落</h2>
-      <div class="format-sample"><strong>正文示例</strong><span style="font-family:'SimSun','Songti SC',serif;font-size:{{ body_size }}pt">正文使用{{ body_size_name }}{{ body_font }}（{{ body_size }}pt），当前规则行距为 {{ line_spacing }}pt。</span></div>
-      <div class="format-sample"><strong>一级标题示例</strong><span style="font-family:'SimSun','Songti SC',serif;font-size:{{ title1_size }}pt;font-weight:700">1 研究背景</span></div>
-      <div class="format-sample"><strong>二级标题示例</strong><span style="font-family:'SimSun','Songti SC',serif;font-size:{{ title2_size }}pt;font-weight:700">1.1 问题提出</span></div>
-      <p>Word 中的字体可能来自直接设置，也可能继承自样式。复杂模板仍应回到 Word 的“样式”面板核对。</p>
+      <div class="format-sample"><strong>正文</strong><span style="font-family:{{ body_css }};font-size:{{ body_size }}pt">正文用{{ body_size_name }}{{ body_font }}（{{ body_size }}pt），行距{{ line_spacing_type }} {{ line_spacing }} 磅。</span></div>
+      <div class="format-sample"><strong>一级标题</strong><span style="font-family:{{ title1_css }};font-size:{{ title1_size }}pt;font-weight:{% if title1_bold %}700{% else %}400{% endif %}">1 研究背景</span></div>
+      <div class="format-sample"><strong>二级标题</strong><span style="font-family:{{ title2_css }};font-size:{{ title2_size }}pt;font-weight:{% if title2_bold %}700{% else %}400{% endif %}">1.1 问题提出</span></div>
+      <div class="format-sample"><strong>三级标题</strong><span style="font-family:{{ title3_css }};font-size:{{ title3_size }}pt;font-weight:{% if title3_bold %}700{% else %}400{% endif %}">1.1.1 样本来源</span></div>
+      <ul class="meta-list">
+        <li>图题表题：{{ caption_size_name }}{{ caption_font }}（{{ caption_size }}pt）</li>
+        <li>脚注：{{ footnote_size_name }}{{ footnote_font }}（{{ footnote_size }}pt）{% if fn_notes %}，{{ fn_notes }}{% endif %}</li>
+      </ul>
+      <p>预览按磅值近似显示，和 Word 里的观感可能有细微差别。字体可能来自直接设置，也可能来自样式，复杂模板要在 Word 的「样式」面板核对。</p>
     </section>
 
     <section class="reference-card" id="figures">
+      <p class="src-tag src-tag--tool">工具规则 · 不读模板</p>
       <h2>图表编号</h2>
-      <p>当前示例采用“章号—序号”的写法。只有所选模板启用对应检查时，报告才会提示这类问题。</p>
-      <div class="format-sample"><strong>参考写法</strong>图3-1 用户增长趋势图<br>表2-1 样本基本信息</div>
-      <div class="format-sample format-sample--wrong"><strong>容易混用</strong>图3.1、图3-01、图 3—1</div>
-      <p>{% if fig_notes %}{{ fig_notes }}{% else %}编号规则以当前正式规范为准。{% endif %}</p>
+      <p>本工具默认一种编号写法：图、表编号用「章号-序号」。若有不同请按照规定图题表题规则撰写。</p>
+      <div class="format-sample"><strong>这样算对</strong>图3-1 用户增长趋势图<br>表2-1 样本基本信息</div>
+      <div class="format-sample format-sample--wrong"><strong>这样会提示</strong>图3.1、图3-01、图 3—1</div>
+      <p>{% if has_figure_rule %}这套模板有图题表题规则，检查时会核对格式是否正确。{% else %}这套模板里没有图题表题规则，检查时跳过这一项。{% endif %}{% if fig_notes %} {{ fig_notes }}{% endif %}</p>
     </section>
 
     <section class="reference-card reference-card--wide" id="references">
-      <h2>参考文献常见写法</h2>
-      <p>以下结构用于快速辨认字段是否齐全。著录细节必须以所选模板与正式规范为准。</p>
-      <table class="rule-table">
-        <thead><tr><th>类型</th><th>标识</th><th>结构示例</th></tr></thead>
-        <tbody>
-          <tr><td>期刊论文</td><td>[J]</td><td>作者. 题名[J]. 刊名, 年, 卷(期): 页码.</td></tr>
-          <tr><td>专著</td><td>[M]</td><td>作者. 书名[M]. 出版地: 出版社, 年.</td></tr>
-          <tr><td>学位论文</td><td>[D]</td><td>作者. 题名[D]. 保存地: 保存单位, 年.</td></tr>
-          <tr><td>网络文献</td><td>[EB/OL]</td><td>作者. 题名[EB/OL]. (发布日期)[引用日期]. URL.</td></tr>
-          <tr><td>报告</td><td>[R]</td><td>作者. 题名[R]. 出版地: 出版者, 年.</td></tr>
-        </tbody>
-      </table>
-      <p class="small-note">当前模板参数：条目 {{ ref_entry_size_name }}{{ ref_entry_font }}（{{ ref_entry_size }}pt），行距 {{ ref_spacing }}pt；数量阈值 {{ ref_min }} 篇，外文 {{ ref_foreign_min }} 篇。阈值只有在模板启用参考文献检查时生效。</p>
+      <p class="src-tag {% if has_ref_entry %}src-tag--tpl{% else %}src-tag--tool{% endif %}">{% if has_ref_entry %}条目排版来自模板{% else %}默认排版{% endif %}</p>
+      <h2>参考文献写法案例</h2>
+      <p>格式仅供参考。</p>
+      <div class="sample-refs" style="font-family:{{ ref_css }};font-size:{{ ref_entry_size }}pt;line-height:{{ ref_spacing }}pt">
+        <p>[1] 张三. 示例期刊论文题名[J]. 示例期刊, 2026, 12(3): 45-52.</p>
+        <p>[2] 李四. 示例图书书名[M]. 北京: 示例出版社, 2026: 10-20.</p>
+        <p>[3] 王五. 示例学位论文题名[D]. 南昌: 示例大学, 2026.</p>
+        <p>[4] 示例研究院. 示例报告名称[R]. 北京: 示例研究院, 2026.</p>
+        <p>[5] 示例机构. 示例网页标题[EB/OL]. (2026-01-01)[2026-09-01]. https://example.com.</p>
+        <p>[6] ZHANG San. Sample Journal Article Title[J]. Sample Journal, 2026, 12(3): 45-52.</p>
+      </div>
+      <p class="small-note">以上条目全部是编造的，只用来对照条目排版和标识，不是真实文献。{% if has_ref_rule %}{{ ref_note }}{% else %}这套模板里没有参考文献规则，检查时跳过这一项。{% endif %}</p>
     </section>
 
     <section class="reference-card reference-card--wide" id="limits">
+      <p class="src-tag src-tag--tool">工具范围 · 按模板启用</p>
       <h2>检查边界</h2>
-      <div class="notice">工具能发现的是“规则明确、Word 结构可读取”的问题。版面观感、图像质量、论证逻辑、学术规范与最终合规结论仍需人工确认。</div>
+      <p>这套模板会查的项目：</p>
+      {% if enabled_checks %}
+      <p class="chip-row">{% for key, label in enabled_checks %}<span class="chip">{{ label }}</span>{% endfor %}</p>
+      {% else %}
+      <p class="chip-row"><span class="chip chip--off">一项都没有</span></p>
+      {% endif %}
+      <div class="notice">不在上面列表里的项目一律不查。只查规则写明、且 Word 能读出来的问题——版面观感、图像质量、论证逻辑、学术结论都要人工确认。</div>
     </section>
   </div>
 </main>

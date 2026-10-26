@@ -16,8 +16,8 @@ class AppSafetyTests(unittest.TestCase):
         response = self.client.get("/")
         text = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn("文检", text)
-        self.assertNotIn("毕业设计格式检测工具", text)
+        self.assertIn("格式检查器", text)
+        self.assertNotIn("毕业设计", text)
 
     def test_profile_path_traversal_is_rejected(self):
         response = self.client.get("/editor/load/%2E%2E%2Fformat_rules.json")
@@ -47,16 +47,14 @@ class AppSafetyTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(os.listdir(upload_dir), [])
 
-    def test_invalid_spec_upload_is_cleaned(self):
-        with tempfile.TemporaryDirectory() as spec_dir:
-            with patch.object(app_module, "SPEC_DIR", spec_dir):
-                response = self.client.post(
-                    "/upload_spec",
-                    data={"spec_file": (io.BytesIO(b"not-a-docx"), "rules.docx")},
-                    content_type="multipart/form-data",
-                )
-            self.assertEqual(response.status_code, 302)
-            self.assertEqual(os.listdir(spec_dir), [])
+    def test_spec_upload_route_removed(self):
+        """规范由使用者的 AI 去读，本工具不再自己解析规范文件。"""
+        response = self.client.post(
+            "/upload_spec",
+            data={"spec_file": (io.BytesIO(b"not-a-docx"), "rules.docx")},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(response.status_code, 404)
 
     def test_inferred_generic_checks_exclude_thesis_only_checks(self):
         checks = app_module.infer_enabled_checks([

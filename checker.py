@@ -1,4 +1,4 @@
-"""文检的 Word 文档格式检查核心。"""
+"""格式检查器的 Word 文档格式检查核心。"""
 
 import re
 import json
@@ -323,8 +323,17 @@ def load_rules_from_json(json_path):
             meta["abstract_min_words"] = r.get("min_words", 400)
 
         # 页眉
-        if section == "page_header" and r.get("header_text"):
-            meta["header_text"] = r["header_text"]
+        if section == "page_header":
+            if r.get("header_text"):
+                meta["header_text"] = r["header_text"]
+            if r.get("size_pt"):
+                meta["header_size_pt"] = r["size_pt"]
+            if r.get("font"):
+                meta["header_font"] = r["font"]
+
+        # 脚注字号（供脚注检查使用，避免把论文默认值写死在逻辑里）
+        if section == "footnote" and r.get("size_pt"):
+            meta["footnote_size_pt"] = r["size_pt"]
 
         # 页面设置
         if section == "page_setup":
@@ -334,7 +343,37 @@ def load_rules_from_json(json_path):
     return rules, meta
 
 
-def classify_paragraph(para, prev_class=None):
+# 连续分类区（如声明）遇到这些特征即视为结束，避免状态粘住整个文档。
+SECTION_STOP_KEYWORDS = ("摘要", "关键词", "目录", "致谢", "参考文献",
+                         "附录", "abstract", "keywords")
+
+# 声明区最长可延续的段落数，超过后强制按常规规则重新分类。
+DECLARATION_MAX_PARAGRAPHS = 10
+
+
+def normalize_text(text):
+    """去掉排版用的空白，让「摘    要」「摘 要」都能可靠命中关键词。"""
+    return re.sub(r'\s+', '', text or '')
+
+
+def looks_like_section_start(text, bold=None, size_pt=None, align=None):
+    """判断段落是否像新章节的开头，用于终止声明区这类连续分类。"""
+    normalized = normalize_text(text).lower()
+    if any(keyword in normalized for keyword in SECTION_STOP_KEYWORDS):
+        return True
+    # 编号标题：1 xxx / 1.1 xxx / 1.1.1 xxx
+    if re.match(r'^\d+(\.\d+)*\s*\S', text or ''):
+        return True
+    # 图/表题注
+    if re.match(r'^(图|表|Figure|Table)\s*\d', text or '', re.IGNORECASE):
+        return True
+    # 居中加粗的短文本，通常是章节标题
+    if align == "居中" and bold and len(text or '') < 30:
+        return True
+    return False
+
+
+def classify_paragraph(para, prev_class=None, declaration_streak=0):
     """
     尝试自动分类段落类型
     返回: 'cover_title', 'cover_field', 'abstract_zh_title', 'abstract_zh_body',
@@ -347,6 +386,7 @@ def classify_paragraph(para, prev_class=None):
     text = para.text.strip()
     if not text:
         return None
+    normalized = normalize_text(text)
 
     # 获取主要字体信息
     fonts_sizes = []
@@ -367,19 +407,19 @@ def classify_paragraph(para, prev_class=None):
     if main_size and main_size >= 36:
         return "cover_title"
     # 封面 - 检测封面字段（题目、姓名、学号等），字号通常在 14-18pt 范围
-    cover_keywords = ["题    目", "题目", "学生姓名", "学    号", "学号",
-                      "班    级", "班级", "专    业", "专业",
-                      "学    院", "学院：", "指导教师", "完成日期"]
-    if main_size and 14 <= main_size <= 18 and any(k in text for k in cover_keywords):
+    cover_keywords = ["题目", "学生姓名", "学号", "班级", "专业",
+                      "学院", "指导教师", "完成日期"]
+    if main_size and 14 <= main_size <= 18 and any(k in normalized for k in cover_keywords):
         return "cover_field"
 
     # 声明类（在封面兜底规则之前检测，避免误分类）
-    if "诚信声明书" in text or "独创性声明" in text or "使用授权声明" in text:
+    if any(k in normalized for k in ("诚信声明书", "独创性声明", "使用授权声明")):
         return "declaration_title"
     if prev_class in ("declaration_title", "declaration_body"):
-        # 遇到摘要、目录等新章节时停止声明分类
-        if any(k in text for k in ["摘要", "Abstract", "目录", "致谢", "参考文献"]):
-            pass  # 跳过，让后续规则处理
+        # 命中新章节特征，或声明区已过长，都结束声明区，交回常规规则处理
+        if (declaration_streak >= DECLARATION_MAX_PARAGRAPHS
+                or looks_like_section_start(text, main_bold, main_size, align)):
+            pass
         else:
             return "declaration_body"
 
@@ -414,7 +454,8 @@ def classify_paragraph(para, prev_class=None):
     # 参考文献条目：紧跟在参考文献标题之后、字号为五号(10.5pt)、不是致谢
     if prev_class in ("reference_title", "reference_entry"):
         if main_size and 9.5 <= main_size <= 12:
-            if "致" not in text or len(text) > 10:
+            # 致谢标题不是文献条目，其余短文本视为条目
+            if not re.match(r'^致\s*谢', text) or len(text) > 10:
                 return "reference_entry"
 
     # 也匹配带 [序号] 的格式
@@ -422,7 +463,7 @@ def classify_paragraph(para, prev_class=None):
         return "reference_entry"
 
     # 致谢
-    if "致" in text and "谢" in text and len(text) < 10:
+    if re.match(r'^致\s*谢', text) and len(text) < 10:
         return "acknowledgment_title"
 
     # 附录
@@ -682,63 +723,70 @@ def check_line_spacing(paragraph_class, para, issues, para_index, rules=None):
     if spacing_pt is None:
         return
 
-    # 外部模板只检查明确写入的行距，不继承论文默认值。
-    expected_spacing = 22
-    expected_type = "固定值"
-    if rules is not None:
-        ls_rule = rules.get(paragraph_class) or rules.get("line_spacing_body") or {}
-        if not ls_rule.get("line_spacing_pt"):
-            return
-        expected_spacing = ls_rule["line_spacing_pt"]
-        expected_type = ls_rule.get("line_spacing_type", "固定值")
+    para_text = para.text.strip()[:80]
 
     # 正文和标题
     body_classes = {"body_text", "level1_title", "level2_title", "level3_title",
                     "abstract_zh_body", "abstract_en_body", "keywords_zh", "keywords_en",
                     "acknowledgment_body"}
 
-    para_text = para.text.strip()[:80]
     if paragraph_class in body_classes:
-        if spacing_type != expected_type:
-            issues.append(Issue(
-                location=f"{location} (行间距)",
-                severity=Severity.WARNING,
-                category="行间距",
-                description=f"行间距类型应为「{expected_type}」，实际为「{spacing_type}」",
-                expected=f"{expected_type} {expected_spacing}磅",
-                actual=f"{spacing_type} {spacing_pt}磅",
-                content=para_text
-            ))
-        elif abs(spacing_pt - expected_spacing) > 1:
-            issues.append(Issue(
-                location=f"{location} (行间距)",
-                severity=Severity.ERROR,
-                category="行间距",
-                description=f"行间距应为「{expected_type} {expected_spacing}磅」，实际为「{spacing_pt}磅」",
-                expected=f"{expected_type} {expected_spacing}磅",
-                actual=f"{spacing_type} {spacing_pt}磅",
-                content=para_text
-            ))
+        # 外部模板只检查明确写入的行距，不继承论文默认值。
+        expected_spacing, expected_type = None, None
+        if rules is None:
+            expected_spacing, expected_type = 22, "固定值"
+        else:
+            ls_rule = (rules.get(paragraph_class)
+                       or rules.get("line_spacing_body") or {})
+            if ls_rule.get("line_spacing_pt"):
+                expected_spacing = ls_rule["line_spacing_pt"]
+                expected_type = ls_rule.get("line_spacing_type", "固定值")
 
-    # 参考文献
-    ref_spacing = 18
-    ref_type = "固定值"
-    if rules is not None:
-        ref_rule = rules.get("reference_entry", {})
-        if not ref_rule.get("line_spacing_pt"):
-            return
-        ref_spacing = ref_rule["line_spacing_pt"]
-        ref_type = ref_rule.get("line_spacing_type", "固定值")
+        if expected_spacing:
+            if spacing_type != expected_type:
+                issues.append(Issue(
+                    location=f"{location} (行间距)",
+                    severity=Severity.WARNING,
+                    category="行间距",
+                    description=f"行间距类型应为「{expected_type}」，实际为「{spacing_type}」",
+                    expected=f"{expected_type} {expected_spacing}磅",
+                    actual=f"{spacing_type} {spacing_pt}磅",
+                    content=para_text,
+                ))
+            elif abs(spacing_pt - expected_spacing) > 1:
+                issues.append(Issue(
+                    location=f"{location} (行间距)",
+                    severity=Severity.ERROR,
+                    category="行间距",
+                    description=(f"行间距应为「{expected_type} {expected_spacing}磅」，"
+                                 f"实际为「{spacing_pt}磅」"),
+                    expected=f"{expected_type} {expected_spacing}磅",
+                    actual=f"{spacing_type} {spacing_pt}磅",
+                    content=para_text,
+                ))
+        return
+
+    # 参考文献条目
     if paragraph_class == "reference_entry":
-        if spacing_type == ref_type and abs(spacing_pt - ref_spacing) > 1:
+        ref_spacing, ref_type = None, None
+        if rules is None:
+            ref_spacing, ref_type = 18, "固定值"
+        else:
+            ref_rule = rules.get("reference_entry") or {}
+            if ref_rule.get("line_spacing_pt"):
+                ref_spacing = ref_rule["line_spacing_pt"]
+                ref_type = ref_rule.get("line_spacing_type", "固定值")
+
+        if ref_spacing and spacing_type == ref_type and abs(spacing_pt - ref_spacing) > 1:
             issues.append(Issue(
                 location=f"{location} (行间距)",
                 severity=Severity.ERROR,
                 category="行间距",
-                description=f"参考文献行间距应为「{ref_type} {ref_spacing}磅」，实际为「{spacing_pt}磅」",
+                description=(f"参考文献行间距应为「{ref_type} {ref_spacing}磅」，"
+                             f"实际为「{spacing_pt}磅」"),
                 expected=f"{ref_type} {ref_spacing}磅",
                 actual=f"{spacing_type} {spacing_pt}磅",
-                content=para_text
+                content=para_text,
             ))
 
 
@@ -856,8 +904,11 @@ def check_figure_table_numbering(paragraphs, classified, issues):
     subfig_pattern = re.compile(r'(图|Figure)\s*(\d+)[\-.](\d+)\s+.+[（(]\s*([a-z]+)\s*[）)]\s*$', re.IGNORECASE)
     table_pattern = re.compile(r'(表|Table)\s*(\d+)[\-.](\d+)', re.IGNORECASE)
 
-    fig_chapters = {}
-    table_chapters = {}
+    # 每章下一个期望的主序号；子图与主图共用同一主编号
+    expected_fig = {}
+    expected_table = {}
+    seen_fig = set()
+    seen_table = set()
     # 子图编号收集：key="ch-num", value=[(位置, 子编号字母, 原文)]
     subfigures = {}
 
@@ -868,48 +919,73 @@ def check_figure_table_numbering(paragraphs, classified, issues):
         if cls == "figure_caption":
             # 先尝试匹配子图格式：标题末尾带（a）（b）
             sm = subfig_pattern.search(text)
+            m = sm or fig_pattern.search(text)
+            if not m:
+                issues.append(Issue(
+                    location=f"{location} (图题注)",
+                    severity=Severity.WARNING,
+                    category="编号",
+                    description="图编号格式应为「图X-Y 标题」，子图格式为「图X-Y 标题（a）」「图X-Y 标题（b）」",
+                    expected="图X-Y 或 图X-Y 标题（a）",
+                    actual=text[:30],
+                    content=text[:80],
+                ))
+                continue
+
+            ch = int(m.group(2))
+            num = int(m.group(3))
+            key = f"{ch}-{num}"
+
             if sm:
-                ch = int(sm.group(2))
-                num = int(sm.group(3))
-                sub_label = sm.group(4).lower()
-                key = f"{ch}-{num}"
-                if key not in subfigures:
-                    subfigures[key] = []
-                subfigures[key].append((i, sub_label, text[:60]))
-                # 子图不递增主序号，但要标记该序号已使用
-                fig_chapters[ch] = max(fig_chapters.get(ch, 0), num + 1)
-            else:
-                m = fig_pattern.search(text)
-                if m:
-                    ch = int(m.group(2))
-                    num = int(m.group(3))
-                    fig_chapters[ch] = max(fig_chapters.get(ch, 0), num + 1)
-                else:
+                subfigures.setdefault(key, []).append((i, m.group(4).lower(), text[:60]))
+
+            # 同一个主编号只占位一次，重复的子图不再推进序号
+            if key not in seen_fig:
+                expected = expected_fig.setdefault(ch, 1)
+                if num != expected:
                     issues.append(Issue(
                         location=f"{location} (图题注)",
-                        severity=Severity.WARNING,
+                        severity=Severity.ERROR,
                         category="编号",
-                        description="图编号格式应为「图X-Y 标题」，子图格式为「图X-Y 标题（a）」「图X-Y 标题（b）」",
-                        expected="图X-Y 或 图X-Y 标题（a）",
-                        actual=text[:30]
+                        description=f"图编号不连续：应为「图{ch}-{expected}」，实际为「图{ch}-{num}」",
+                        expected=f"图{ch}-{expected}",
+                        actual=f"图{ch}-{num}",
+                        content=text[:80],
                     ))
+                expected_fig[ch] = num + 1
+                seen_fig.add(key)
 
         elif cls == "table_caption":
             m = table_pattern.search(text)
-            if m:
-                ch = int(m.group(2))
-                num = int(m.group(3))
-                expected = table_chapters.get(ch, 1)
-                table_chapters[ch] = num + 1
-            else:
+            if not m:
                 issues.append(Issue(
                     location=f"{location} (表题注)",
                     severity=Severity.WARNING,
                     category="编号",
                     description="表编号格式应为「表X-Y」（X 为章号，Y 为表序号）",
                     expected="表X-Y",
-                    actual=text[:30]
+                    actual=text[:30],
+                    content=text[:80],
                 ))
+                continue
+
+            ch = int(m.group(2))
+            num = int(m.group(3))
+            key = f"{ch}-{num}"
+            if key not in seen_table:
+                expected = expected_table.setdefault(ch, 1)
+                if num != expected:
+                    issues.append(Issue(
+                        location=f"{location} (表题注)",
+                        severity=Severity.ERROR,
+                        category="编号",
+                        description=f"表编号不连续：应为「表{ch}-{expected}」，实际为「表{ch}-{num}」",
+                        expected=f"表{ch}-{expected}",
+                        actual=f"表{ch}-{num}",
+                        content=text[:80],
+                    ))
+                expected_table[ch] = num + 1
+                seen_table.add(key)
 
     # 子图编号连续性检查
     for fig_key, subs in subfigures.items():
@@ -944,16 +1020,13 @@ def check_reference_format(paragraphs, classified, issues, meta=None):
     """检测参考文献格式（GB/T 7714）"""
     ref_count = 0
     foreign_count = 0
-    has_bracket_format = None  # None=未知, True=带序号, False=无序号
     bracket_count = 0
     non_bracket_count = 0
-    ref_start_para = None
 
     in_refs = False
     for i, (para, cls) in enumerate(zip(paragraphs, classified)):
         if cls == "reference_title":
             in_refs = True
-            ref_start_para = i
             continue
 
         if in_refs and cls == "reference_entry":
@@ -1082,11 +1155,6 @@ def check_reference_entry_format(paragraphs, classified, issues):
                         content=text[:80]
                     ))
 
-            # 检查是否引用了本校学生论文（不常见，可能是错误）
-            if re.search(r'(毕业设计|毕业论文|本科论文|学位论文).*\[D\]', content):
-                # 学位论文 [D] 格式本身没问题，但引用本科毕设不太常见
-                pass  # 不报错，[D] 格式是合法的
-
         elif in_refs and cls and cls != "reference_entry":
             break
 
@@ -1113,9 +1181,15 @@ def check_page_setup(doc, issues, meta=None):
 
 
 def check_header(doc, issues, meta=None, classified=None):
-    """检测页眉（仅检查正文部分）"""
+    """检测页眉（仅检查正文部分）。
+
+    规则没有指定页眉文字时，不猜测内容，只保留「非正文节不应有页眉」
+    这类结构判断。
+    """
     meta = meta or {}
-    expected = meta.get("header_text", "XXX大学毕业设计（论文）")
+    expected = meta.get("header_text")
+    expected_size = meta.get("header_size_pt")
+    expected_font = meta.get("header_font") or "宋体"
 
     non_header_classes = {"reference_title", "reference_entry",
                           "acknowledgment_title", "acknowledgment_body",
@@ -1156,28 +1230,12 @@ def check_header(doc, issues, meta=None, classified=None):
 
         header_texts = [p.text.strip() for p in header.paragraphs if p.text.strip()]
 
-        found = False
-        for ht in header_texts:
-            if ht == expected or (expected[:4] in ht and expected[-3:] in ht):
-                found = True
-                # 检查页眉字体
-                for p in header.paragraphs:
-                    for r in p.runs:
-                        fn, sz, bold = get_run_font_info(r)
-                        if sz and abs(sz - 9) > 0.5:
-                            actual_desc = format_font_size(fn, sz)
-                            issues.append(Issue(
-                                location=f"页眉 (第 {i+1} 节)",
-                                severity=Severity.WARNING,
-                                category="页眉",
-                                description=f"页眉字号应为「宋体小五号」，实际为「{actual_desc}」",
-                                expected="宋体小五号",
-                                actual=actual_desc,
-                                content=ht
-                            ))
-                break
+        # 规则未指定页眉文字时，不做内容比对
+        if not expected:
+            continue
 
-        if not found and not header.is_linked_to_previous:
+        found = any(ht == expected for ht in header_texts)
+        if not found:
             actual_text = header_texts[0] if header_texts else "（空）"
             issues.append(Issue(
                 location=f"页眉 (第 {i+1} 节)",
@@ -1188,6 +1246,30 @@ def check_header(doc, issues, meta=None, classified=None):
                 actual=actual_text,
                 content=actual_text
             ))
+            continue
+
+        # 找到规定文字后，再核对页眉字号（规则未指定字号时不检查）
+        if not expected_size:
+            continue
+
+        for p in header.paragraphs:
+            for r in p.runs:
+                if not r.text.strip():
+                    continue
+                fn, sz, bold = get_run_font_info(r)
+                if sz and abs(sz - expected_size) > 0.5:
+                    actual_desc = format_font_size(fn, sz)
+                    expected_desc = format_font_size(expected_font, expected_size)
+                    issues.append(Issue(
+                        location=f"页眉 (第 {i+1} 节)",
+                        severity=Severity.WARNING,
+                        category="页眉",
+                        description=(f"页眉应为「{expected_desc}」，"
+                                     f"实际为「{actual_desc}」"),
+                        expected=expected_desc,
+                        actual=actual_desc,
+                        content=r.text.strip()[:80]
+                    ))
 
 
 def check_cover_completeness(paragraphs, classified, issues):
@@ -1231,6 +1313,7 @@ def check_abstract_content(paragraphs, classified, issues, meta=None):
     """检测摘要字数"""
     meta = meta or {}
     min_words = meta.get("abstract_min_words", 400)
+    min_en_words = meta.get("abstract_en_min_words", 150)
 
     # 中文摘要
     zh_abstract_text = []
@@ -1254,6 +1337,30 @@ def check_abstract_content(paragraphs, classified, issues, meta=None):
             description=f"中文摘要字数不足，要求不少于 {min_words} 字，实际约 {zh_count} 字",
             expected=f"≥{min_words} 字",
             actual=f"约 {zh_count} 字"
+        ))
+
+    # 英文摘要：按英文单词数统计，仅作提示，避免与中文摘要标准混用
+    en_abstract_text = []
+    in_en = False
+    for para, cls in zip(paragraphs, classified):
+        if cls == "abstract_en_title":
+            in_en = True
+            continue
+        if cls == "keywords_en":
+            break
+        if in_en and cls == "abstract_en_body":
+            en_abstract_text.append(para.text.strip())
+
+    en_count = len(re.findall(r'[A-Za-z]+', " ".join(en_abstract_text)))
+    if 0 < en_count < min_en_words:
+        issues.append(Issue(
+            location="英文摘要",
+            severity=Severity.INFO,
+            category="字数",
+            description=(f"英文摘要偏短，约 {en_count} 个英文单词，"
+                         f"通常与中文摘要内容对应"),
+            expected=f"≥{min_en_words} 词（若模板另有要求，以模板为准）",
+            actual=f"约 {en_count} 词"
         ))
 
 
@@ -1281,8 +1388,10 @@ def check_word_count(doc, paragraphs, classified, issues, meta=None):
             location="正文",
             severity=Severity.WARNING,
             category="字数",
-            description=f"正文字数偏少，设计说明文要求不少于 {min_design} 字，毕业论文不少于 {min_paper} 字。当前约 {char_count} 字（不含图表）",
-            expected=f"≥{min_design} 字（设计说明文）或 ≥{min_paper} 字（论文）",
+            description=(f"正文字数偏少：当前约 {char_count} 字（不含图表），"
+                         f"低于所选规则的最低要求。"),
+            expected=(f"≥{min_design} 字（按所选规则）；"
+                      f"若适用较长材料标准，要求 ≥{min_paper} 字"),
             actual=f"约 {char_count} 字"
         ))
 
@@ -1345,16 +1454,19 @@ def check_footnotes(doc, paragraphs, classified, issues, meta=None):
                     if not run_content:
                         continue
 
-                    # 检查字号（应为 9pt / 小五号）
-                    if sz_val and abs(sz_val - 9) > 0.5:
+                    # 检查字号（取规则中的脚注字号，未指定则默认小五 9pt）
+                    expected_fn_size = (meta or {}).get("footnote_size_pt") or 9
+                    if sz_val and abs(sz_val - expected_fn_size) > 0.5:
                         if not fn_has_font_issue:
                             actual_desc = format_font_size(font_name, sz_val)
+                            expected_desc = format_font_size("宋体", expected_fn_size)
                             issues.append(Issue(
-                                location=f"脚注 [{int(fn_id)}]",
+                                location=f"脚注 [{int(fn_id) if fn_id.isdigit() else fn_id}]",
                                 severity=Severity.WARNING,
                                 category="脚注",
-                                description=f"脚注字号应为「宋体小五号」，实际为「{actual_desc}」",
-                                expected="宋体小五号",
+                                description=(f"脚注字号应为「{expected_desc}」，"
+                                             f"实际为「{actual_desc}」"),
+                                expected=expected_desc,
                                 actual=actual_desc,
                                 content=content[:60]
                             ))
@@ -1391,59 +1503,70 @@ def check_footnotes(doc, paragraphs, classified, issues, meta=None):
                                 ))
             break
 
-    # 检查编号是否连续 [1][2][3]...
-    # 脚注引用在正文中的顺序就是编号顺序
-    # 检查编号是否为连续数字
+    # 检查编号是否连续。
+    # 注意：Word 的脚注 id 起始值并不固定（0、1 通常预留给分隔符），
+    # 因此以第一处引用为基准检查是否依次递增，而不是硬性要求从 1 开始。
     ref_int_ids = []
     for rid in ref_ids:
         try:
             ref_int_ids.append(int(rid))
-        except ValueError:
+        except (TypeError, ValueError):
             ref_int_ids.append(None)
 
-    # 检查是否从 1 开始连续
-    expected = 1
+    base_id = None
     for j, (rid, int_id) in enumerate(zip(ref_ids, ref_int_ids)):
         location = f"脚注引用 (第{j + 1}处)"
         if int_id is None:
             issues.append(Issue(
                 location=location,
-                severity=Severity.ERROR,
+                severity=Severity.WARNING,
                 category="脚注",
-                description=f"脚注编号格式异常：应为数字，实际为「{rid}」",
-                expected="数字编号（1, 2, 3...）",
-                actual=rid
+                description=f"脚注编号格式异常，无法判断顺序：{rid}",
+                expected="数字编号",
+                actual=str(rid),
+                content=fn_contents.get(rid, '')[:60],
             ))
-        elif int_id != expected:
+            continue
+
+        if base_id is None:
+            base_id = int_id
+            continue
+
+        if int_id != base_id + j:
             issues.append(Issue(
                 location=location,
                 severity=Severity.ERROR,
                 category="脚注",
-                description=f"脚注编号不连续：期望 [{expected}]，实际 [{int_id}]",
-                expected=f"[{expected}]",
-                actual=f"[{int_id}]",
-                content=fn_contents.get(rid, '')[:60]
+                description=(f"脚注编号不连续：期望 [{j + 1}]，"
+                             f"实际 [{int_id - base_id + 1}]"),
+                expected=f"[{j + 1}]",
+                actual=f"[{int_id - base_id + 1}]",
+                content=fn_contents.get(rid, '')[:60],
             ))
-            expected = int_id + 1
-        else:
-            expected += 1
 
     # 检查重复引用：同一文献多次引用时是否都给了新编号
     # （GB/T 7714 要求顺序编码制，每次引用按出现顺序编号）
+    display_index = {}
+    for j, rid in enumerate(ref_ids):
+        display_index[rid] = j + 1
+
     seen_contents = {}
     for rid in ref_ids:
         fn_text = fn_contents.get(rid, '')
+        if not fn_text:
+            continue
         if fn_text in seen_contents:
             issues.append(Issue(
-                location=f"脚注 [{int(rid)}]",
+                location=f"脚注引用 (第{display_index[rid]}处)",
                 severity=Severity.WARNING,
                 category="脚注",
-                description=f"脚注内容与脚注 [{int(seen_contents[fn_text])}] 重复，同一文献应使用同一编号",
+                description=(f"脚注内容与第 {display_index[seen_contents[fn_text]]} 处重复，"
+                             f"同一文献应使用同一编号"),
                 expected="重复引用使用相同编号",
-                actual=f"给了新编号 [{int(rid)}]",
-                content=fn_text[:60]
+                actual=f"给了新编号 [{display_index[rid]}]",
+                content=fn_text[:60],
             ))
-        elif fn_text:
+        else:
             seen_contents[fn_text] = rid
 
 
@@ -1471,11 +1594,16 @@ def check_document(filepath, rules_json_path=None):
     # 分类所有段落
     classified = []
     prev = None
+    declaration_streak = 0
     for para in paragraphs:
-        cls = classify_paragraph(para, prev)
+        cls = classify_paragraph(para, prev, declaration_streak)
         classified.append(cls)
         if cls:
             prev = cls
+        if cls in ("declaration_title", "declaration_body"):
+            declaration_streak += 1
+        else:
+            declaration_streak = 0
 
     result = CheckResult(filename=filepath.split("/")[-1])
 

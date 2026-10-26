@@ -1,4 +1,4 @@
-"""文检 - 本地 Word 文档格式检查应用。"""
+"""格式检查器 - 本地 Word 文档格式检查应用。"""
 
 import io
 import os
@@ -11,19 +11,35 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from dataclasses import dataclass, field
+
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash, jsonify
 from checker import check_document
-from spec_parser import parse_spec_docx
 from report import generate_report_html
+
+
+@dataclass
+class FailedResult:
+    """单个文件解析失败时的占位结果，字段与 CheckResult 保持一致。"""
+    filename: str
+    error: str
+    issues: list = field(default_factory=list)
+    summary: dict = field(default_factory=lambda: {"errors": 0, "warnings": 0, "infos": 0})
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 app.config["SHOW_FOOTER"] = True
-app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 96 * 1024 * 1024
+# 本地工具，改界面文案后刷新页面即可看到，无需重启。
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.jinja_env.auto_reload = True
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 SPEC_DIR = os.path.join(BASE_DIR, "specs")
+# 本机偏好（目前只记录主模板）。放在 BASE_DIR 而不是 specs/，
+# 避免被模板扫描当成一套模板读进去。
+SETTINGS_PATH = os.path.join(BASE_DIR, "settings.json")
 
 ALLOWED_EXTENSIONS = {"docx", "doc"}
 MAX_FILES_PER_CHECK = 12
@@ -33,13 +49,76 @@ BUILTIN_PROFILE_ID = "__builtin__"
 # 报告只在当前进程内短期保存，不写入磁盘。
 REPORT_CACHE = {}
 
+# 规则里的中文字体名 → 浏览器字族，让「格式参考」的样例显示成对的字体。
+FONT_CSS = {
+    "宋体": "'SimSun','Songti SC',serif",
+    "黑体": "'SimHei','Heiti SC',sans-serif",
+    "楷体": "'KaiTi','Kaiti SC',serif",
+    "仿宋": "'FangSong','STFangsong',serif",
+    "微软雅黑": "'Microsoft YaHei','PingFang SC',sans-serif",
+    "等线": "'DengXian','PingFang SC',sans-serif",
+}
+
+# 「格式参考」页要告诉使用者这套模板会查哪些项。顺序按检查流程排，
+# 不按字母序，否则读起来是乱的。
+CHECK_ORDER = (
+    "structure", "cover", "abstract", "word_count", "font", "alignment",
+    "line_spacing", "title_numbering", "figure_table_numbering",
+    "references", "footnotes", "page_setup", "header",
+)
+CHECK_LABELS = {
+    "structure": "章节结构",
+    "cover": "封面",
+    "abstract": "摘要与关键词",
+    "word_count": "字数",
+    "font": "字体字号",
+    "alignment": "对齐",
+    "line_spacing": "行距",
+    "title_numbering": "标题编号",
+    "figure_table_numbering": "图表编号",
+    "references": "参考文献",
+    "footnotes": "脚注",
+    "page_setup": "页面设置",
+    "header": "页眉",
+}
+
+def purge_directory(directory):
+    """清空临时目录里的历史残留，避免旧上传件长期留在本机。"""
+    try:
+        entries = os.listdir(directory)
+    except OSError:
+        return 0
+
+    removed = 0
+    for name in entries:
+        path = os.path.join(directory, name)
+        try:
+            if os.path.isfile(path) or os.path.islink(path):
+                os.remove(path)
+                removed += 1
+        except OSError:
+            pass
+    return removed
+
+
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(SPEC_DIR, exist_ok=True)
+
+# 上次异常退出可能留下副本，启动时先清一遍。
+purge_directory(UPLOAD_DIR)
 
 
 @app.context_processor
 def inject_footer():
     return dict(show_footer=app.config.get("SHOW_FOOTER", False))
+
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """上传超限时不暴露 Flask 默认错误页，回到首页给出可执行的提示。"""
+    limit_mb = (app.config.get("MAX_CONTENT_LENGTH") or 0) // (1024 * 1024)
+    flash(f"这一批文件合计超过 {limit_mb} MB，请减少文件数量或分批检查。", "error")
+    return redirect(url_for("index"))
 
 
 def _safe_display_name(filename):
@@ -66,10 +145,10 @@ def _profile_payload(path):
 
     return {
         "profile": {
-            "name": profile.get("name", "本地规则模板"),
+            "name": profile.get("name", "未命名模板"),
             "document_type": profile.get("document_type", "Word 文档"),
-            "description": profile.get("description", "由本地规则文件提供的格式检查要求"),
-            "source": profile.get("source", "内置规则或经使用者确认的本地规则"),
+            "description": profile.get("description", "这套模板没有写说明"),
+            "source": profile.get("source", "未标注来源"),
             "version": profile.get("version", "1.0"),
             "updated_at": profile.get("updated_at", "未标注"),
             "enabled_checks": profile.get("enabled_checks"),
@@ -78,7 +157,28 @@ def _profile_payload(path):
     }
 
 
+def load_settings():
+    """读取本机偏好。文件缺失或损坏时当作空设置，不影响检查功能。"""
+    try:
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_settings(settings):
+    try:
+        with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+            json.dump(settings, f, ensure_ascii=False, indent=2)
+    except OSError:
+        return False
+    return True
+
+
 def list_profiles():
+    settings = load_settings()
+    default_id = settings.get("default_profile_id") or ""
     profiles = []
     builtin_path = os.path.join(BASE_DIR, "format_rules.json")
     if os.path.exists(builtin_path):
@@ -106,19 +206,83 @@ def list_profiles():
             **payload["profile"],
             "rule_count": len(payload["rules"]),
         })
+
+    for profile in profiles:
+        profile["is_default"] = profile["id"] == default_id
+        # 卡片上那行说明。示例模板不参与「主模板」这套说法。
+        if profile["is_builtin"]:
+            profile["meta_text"] = f"示例模板 · {profile['rule_count']} 条规则"
+        elif profile["is_default"]:
+            profile["meta_text"] = f"主要格式模板 · {profile['rule_count']} 条已保存规则"
+        else:
+            profile["meta_text"] = f"格式模板 · {profile['rule_count']} 条已保存规则"
+
+    # 主模板固定排第一，其余按名称排，保证每次打开顺序一致。
+    profiles.sort(key=lambda p: (not p["is_default"], p["is_builtin"], p["name"]))
     return profiles
 
 
-def get_profile(profile_id=None):
-    profiles = list_profiles()
-    if not profiles:
-        return None
+def resolve_profile(profile_id):
+    """把外部传入的模板标识解析为已知模板，找不到就返回 None。
 
-    requested = profile_id or BUILTIN_PROFILE_ID
-    for profile in profiles:
-        if profile["id"] == requested:
+    不做「返回第一个」的兜底：任何无法识别的标识都必须显式失败，
+    否则上层路由可能拿到内置模板继续处理，掩盖非法输入。
+    """
+    if not profile_id:
+        return None
+    for profile in list_profiles():
+        if profile["id"] == profile_id:
             return profile
-    return profiles[0]
+    return None
+
+
+def get_profile(profile_id=None):
+    """返回要展示的模板：未指定时用主模板，主模板缺失再退回内置示例。
+
+    仅用于「选择默认值」这类展示场景；涉及文件删除、读取的路由
+    必须改用 resolve_profile，避免对非法标识静默兜底。
+    """
+    profile = resolve_profile(profile_id)
+    if profile:
+        return profile
+
+    default_profile = resolve_profile(load_settings().get("default_profile_id"))
+    if default_profile:
+        return default_profile
+
+    builtin = resolve_profile(BUILTIN_PROFILE_ID)
+    if builtin:
+        return builtin
+
+    profiles = list_profiles()
+    return profiles[0] if profiles else None
+
+
+def sync_default_profile(new_profile_id=None):
+    """让主模板始终指向一个真实存在的模板。
+
+    - 主模板指向的文件被删掉时，重选一个自建模板，没有就退回内置示例。
+    - 刚保存或刚上传的模板（new_profile_id）出现时，如果主模板还停在
+      内置示例上，就把主模板交给新模板——用户建了自己的模板，默认值
+      不该继续指向示例。
+    """
+    settings = load_settings()
+    current = resolve_profile(settings.get("default_profile_id"))
+    candidate = resolve_profile(new_profile_id) if new_profile_id else None
+
+    needs_switch = current is None or (current["is_builtin"] and candidate is not None)
+    if not needs_switch:
+        return current
+
+    chosen = candidate
+    if chosen is None:
+        owned = [p for p in list_profiles() if not p["is_builtin"]]
+        chosen = max(owned, key=lambda p: os.path.getmtime(p["path"])) if owned else resolve_profile(BUILTIN_PROFILE_ID)
+
+    if chosen and chosen["id"] != settings.get("default_profile_id"):
+        settings["default_profile_id"] = chosen["id"]
+        save_settings(settings)
+    return chosen
 
 
 def _cleanup_report_cache():
@@ -183,6 +347,17 @@ def infer_enabled_checks(rules):
     return sorted(enabled)
 
 
+@app.context_processor
+def inject_nav_profile():
+    """导航链接要带上当前模板，否则点过去会跳回主模板。
+
+    模板规则页在看 A 模板、点「格式参考」却看到主模板的数字，
+    是很容易误导人的错位，所以统一由这里提供。
+    """
+    profile = get_profile(request.args.get("profile"))
+    return {"nav_profile_id": profile["id"] if profile else None}
+
+
 @app.route("/")
 def index():
     profiles = list_profiles()
@@ -191,7 +366,9 @@ def index():
         "index.html",
         profiles=profiles,
         selected_profile=selected_profile,
+        has_own_profile=any(not p["is_builtin"] for p in profiles),
         max_files=MAX_FILES_PER_CHECK,
+        max_total_mb=(app.config.get("MAX_CONTENT_LENGTH") or 0) // (1024 * 1024),
         old_doc_supported=sys.platform == "darwin" and bool(shutil.which("textutil")),
     )
 
@@ -202,13 +379,15 @@ def examples():
     profile = get_profile(request.args.get("profile"))
     rules_json_path = profile["path"] if profile else None
     rules_dict = {}
+    raw_rules = []
     if rules_json_path:
         try:
             with open(rules_json_path, "r", encoding="utf-8") as f:
                 raw = json.load(f)
             if isinstance(raw, dict):
                 raw = raw.get("rules", [])
-            for r in raw:
+            raw_rules = [r for r in raw if isinstance(r, dict)]
+            for r in raw_rules:
                 section = r.get("section", "")
                 rules_dict[section] = r
         except Exception:
@@ -218,10 +397,18 @@ def examples():
     def rule_val(section, key, default=""):
         return rules_dict.get(section, {}).get(key, default)
 
+    def css_font(section, default_font="宋体"):
+        """把规则里的字体名翻成浏览器能用的字族，样例才会显示成对的字体。"""
+        name = rule_val(section, "font", default_font)
+        return FONT_CSS.get(name) or FONT_CSS[default_font]
+
+    enabled = infer_enabled_checks(raw_rules)
+
     params = {
         "body_font": rule_val("body_text", "font", "宋体"),
         "body_size": rule_val("body_text", "size_pt", 12),
         "body_size_name": rule_val("body_text", "size_name", "小四"),
+        "body_css": css_font("body_text"),
         "caption_font": rule_val("figure_caption", "font", "宋体"),
         "caption_size": rule_val("figure_caption", "size_pt", 10.5),
         "caption_size_name": rule_val("figure_caption", "size_name", "五号"),
@@ -231,7 +418,9 @@ def examples():
         "ref_entry_font": rule_val("reference_entry", "font", "宋体"),
         "ref_entry_size": rule_val("reference_entry", "size_pt", 10.5),
         "ref_entry_size_name": rule_val("reference_entry", "size_name", "五号"),
+        "ref_css": css_font("reference_entry"),
         "line_spacing": rule_val("line_spacing_body", "line_spacing_pt", 22),
+        "line_spacing_type": rule_val("line_spacing_body", "line_spacing_type", "固定值"),
         "ref_spacing": rule_val("reference_entry", "line_spacing_pt", 18),
         "ref_min": rule_val("reference_count", "min_count", 20),
         "ref_foreign_min": rule_val("reference_foreign_count", "min_count", 3),
@@ -240,12 +429,41 @@ def examples():
         "title1_font": rule_val("level1_title", "font", "宋体"),
         "title1_size": rule_val("level1_title", "size_pt", 15),
         "title1_size_name": rule_val("level1_title", "size_name", "小三"),
+        "title1_css": css_font("level1_title"),
+        "title1_bold": rule_val("level1_title", "bold", True),
         "title2_font": rule_val("level2_title", "font", "宋体"),
         "title2_size": rule_val("level2_title", "size_pt", 14),
         "title2_size_name": rule_val("level2_title", "size_name", "四号"),
+        "title2_css": css_font("level2_title"),
+        "title2_bold": rule_val("level2_title", "bold", True),
+        "title3_font": rule_val("level3_title", "font", "宋体"),
+        "title3_size": rule_val("level3_title", "size_pt", 12),
+        "title3_size_name": rule_val("level3_title", "size_name", "小四"),
+        "title3_css": css_font("level3_title"),
+        "title3_bold": rule_val("level3_title", "bold", True),
         "abstract_body_font": rule_val("abstract_zh_body", "font", "楷体"),
         "abstract_body_size": rule_val("abstract_zh_body", "size_pt", 12),
+        "enabled_checks": [(key, CHECK_LABELS[key]) for key in CHECK_ORDER if key in enabled],
+        "has_figure_rule": "figure_table_numbering" in enabled,
     }
+
+    # 参考文献这张卡片的最后一行只说数量要求。
+    # 条目排版是不是模板规定的，由卡片左上角的标签（来自模板 / 默认排版）表示，
+    # 不再用一句话重复，也不把默认值说成模板要求。
+    has_ref_entry = "reference_entry" in rules_dict
+    has_ref_count = "reference_count" in rules_dict
+    has_ref_foreign = "reference_foreign_count" in rules_dict
+    params["has_ref_rule"] = has_ref_entry or has_ref_count or has_ref_foreign
+    params["has_ref_entry"] = has_ref_entry
+    if has_ref_count and has_ref_foreign:
+        params["ref_note"] = "当前模板参考文献数量要求：参考文献不少于 %s 篇，其中外文不少于 %s 篇。" % (
+            params["ref_min"], params["ref_foreign_min"])
+    elif has_ref_count:
+        params["ref_note"] = "当前模板参考文献数量要求：参考文献不少于 %s 篇。" % params["ref_min"]
+    elif has_ref_foreign:
+        params["ref_note"] = "当前模板参考文献数量要求：外文参考文献不少于 %s 篇。" % params["ref_foreign_min"]
+    else:
+        params["ref_note"] = "当前模板没规定参考文献数量。"
 
     return render_template("examples.html", profile=profile, **params)
 
@@ -254,7 +472,12 @@ def examples():
 def editor():
     profiles = list_profiles()
     selected_profile = get_profile(request.args.get("profile"))
-    return render_template("editor.html", profiles=profiles, selected_profile=selected_profile)
+    return render_template(
+        "editor.html",
+        profiles=profiles,
+        selected_profile=selected_profile,
+        old_doc_supported=sys.platform == "darwin" and bool(shutil.which("textutil")),
+    )
 
 
 @app.route("/editor/active")
@@ -276,10 +499,58 @@ def editor_active():
         source_label=profile["name"],
         profile={key: profile.get(key) for key in (
             "id", "name", "document_type", "description", "source",
-            "version", "updated_at", "enabled_checks", "is_builtin"
+            "version", "updated_at", "enabled_checks", "is_builtin", "is_default",
+            "rule_count", "meta_text"
         )},
         rules=rules,
     )
+
+
+@app.route("/editor/rename", methods=["POST"])
+def editor_rename():
+    """改模板显示名称。内置示例也允许改，改名不动规则内容。"""
+    data = request.get_json(silent=True) or {}
+    profile = resolve_profile(data.get("profile_id"))
+    if not profile:
+        return jsonify(ok=False, error="模板不存在"), 404
+
+    name = str(data.get("name") or "").strip()[:60]
+    if not name:
+        return jsonify(ok=False, error="名称不能为空"), 400
+
+    for other in list_profiles():
+        if other["id"] != profile["id"] and other["name"] == name:
+            return jsonify(ok=False, error="已有同名模板，换个名字"), 400
+
+    try:
+        with open(profile["path"], "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        if isinstance(raw, dict):
+            raw.setdefault("profile", {})["name"] = name
+            payload = raw
+        else:
+            payload = {"profile": {"name": name}, "rules": raw}
+        with open(profile["path"], "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except (OSError, ValueError) as e:
+        return jsonify(ok=False, error=f"写入失败：{e}"), 500
+
+    return jsonify(ok=True, name=name)
+
+
+@app.route("/editor/set-default", methods=["POST"])
+def editor_set_default():
+    """把某套模板设为主模板：首页和检查时默认用它。"""
+    data = request.get_json(silent=True) or {}
+    profile = resolve_profile(data.get("profile_id"))
+    if not profile:
+        return jsonify(ok=False, error="模板不存在"), 404
+
+    settings = load_settings()
+    settings["default_profile_id"] = profile["id"]
+    if not save_settings(settings):
+        return jsonify(ok=False, error="无法写入设置文件"), 500
+    return jsonify(ok=True)
 
 
 @app.route("/editor/save", methods=["POST"])
@@ -345,7 +616,9 @@ def editor_save():
     try:
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
-        return jsonify(ok=True, profile_id=filename)
+        promoted = sync_default_profile(filename)
+        return jsonify(ok=True, profile_id=filename,
+                       is_default=bool(promoted and promoted["id"] == filename))
     except Exception as e:
         return jsonify(ok=False, error=str(e))
 
@@ -353,94 +626,27 @@ def editor_save():
 @app.route("/editor/load/<spec_name>")
 def editor_load(spec_name):
     """加载已有规范文件，返回 JSON"""
-    profile = get_profile(spec_name)
-    if not profile or profile["id"] != spec_name:
-        return jsonify(ok=False, error="规范文件不存在")
+    profile = resolve_profile(spec_name)
+    if not profile:
+        return jsonify(ok=False, error="规范文件不存在"), 404
 
     try:
         payload = _profile_payload(profile["path"])
         return jsonify(ok=True, profile=payload["profile"], rules=payload["rules"])
-    except Exception as e:
-        return jsonify(ok=False, error=str(e))
+    except (OSError, ValueError, TypeError) as e:
+        return jsonify(ok=False, error=str(e)), 500
 
 
 @app.route("/editor/delete/<spec_name>", methods=["POST"])
 def editor_delete(spec_name):
     """删除已有规范"""
-    profile = get_profile(spec_name)
-    if not profile or profile["id"] != spec_name or profile["is_builtin"]:
+    profile = resolve_profile(spec_name)
+    if not profile or profile["is_builtin"]:
         return jsonify(ok=False, error="不能删除该规则模板"), 400
     os.remove(profile["path"])
+    # 删掉的如果是主模板，需要把默认值挪到别的模板上。
+    sync_default_profile()
     return jsonify(ok=True)
-
-
-@app.route("/upload_spec", methods=["POST"])
-def upload_spec():
-    """上传规范文件，解析并保存规则"""
-    spec_file = request.files.get("spec_file")
-    if not spec_file or spec_file.filename == "":
-        flash("请选择规范文件", "error")
-        return redirect(url_for("index"))
-
-    filename = _safe_display_name(spec_file.filename)
-    ext = _extension(filename)
-
-    if ext not in ("doc", "docx"):
-        flash("规范文件仅支持 .doc 或 .docx 格式", "error")
-        return redirect(url_for("index"))
-
-    # 保存到随机命名的临时文件；原始文件名只用于页面说明。
-    task_id = uuid.uuid4().hex[:8]
-    filepath = os.path.join(SPEC_DIR, f"{task_id}_source.{ext}")
-    spec_file.save(filepath)
-    docx_path = filepath
-
-    try:
-        if ext == "doc":
-            docx_path = convert_doc_to_docx(filepath)
-            if not docx_path:
-                flash("无法转换 .doc 文件，请另存为 .docx 后重试", "error")
-                return redirect(url_for("editor"))
-
-        rules = parse_spec_docx(docx_path)
-        rules_json_path = os.path.join(SPEC_DIR, f"profile_{task_id}.json")
-        payload = {
-            "profile": {
-                "name": f"待确认规则 · {Path(filename).stem[:40]}",
-                "document_type": "待确认 Word 文档",
-                "description": "由规范文件有限提取，使用前必须人工核验",
-                "source": filename,
-                "version": "草稿",
-                "updated_at": datetime.now().strftime("%Y-%m-%d"),
-                "enabled_checks": infer_enabled_checks(rules),
-            },
-            "rules": rules,
-        }
-        with open(rules_json_path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-        flash(f"规范文件解析成功，提取 {len(rules)} 条规则", "success")
-    except Exception:
-        flash("规范文件解析失败。请确认文件未损坏，并先另存为 .docx 后重试。", "error")
-        return redirect(url_for("editor"))
-
-    finally:
-        for cleanup_path in {filepath, docx_path}:
-            if cleanup_path and os.path.exists(cleanup_path):
-                try:
-                    os.remove(cleanup_path)
-                except OSError:
-                    pass
-
-    return redirect(url_for("editor", profile=f"profile_{task_id}.json"))
-
-
-@app.route("/delete_spec/<spec_name>", methods=["POST"])
-def delete_spec(spec_name):
-    """删除已上传的规范"""
-    profile = get_profile(spec_name)
-    if profile and profile["id"] == spec_name and not profile["is_builtin"]:
-        os.remove(profile["path"])
-    return redirect(url_for("index"))
 
 
 @app.route("/check", methods=["POST"])
@@ -467,19 +673,20 @@ def check():
         # 保存上传文件
         task_id = uuid.uuid4().hex[:8]
         filepath = os.path.join(UPLOAD_DIR, f"{task_id}.{ext}")
-        f.save(filepath)
-
-        docx_path = filepath
+        docx_path = None
         try:
+            # 保存本身也可能失败（磁盘、权限、流中断），必须一并纳入清理范围。
+            f.save(filepath)
+            docx_path = filepath
+
             if ext == "doc":
                 docx_path = convert_doc_to_docx(filepath)
                 if not docx_path:
-                    results.append(type("Err", (), {
-                        "filename": filename,
-                        "issues": [],
-                        "summary": {"errors": 0, "warnings": 0, "infos": 0},
-                        "error": "当前系统无法安全转换旧 .doc，请在 Word 或 WPS 中另存为 .docx 后重试"
-                    })())
+                    results.append(FailedResult(
+                        filename=filename,
+                        error=("当前系统无法安全转换旧 .doc，"
+                               "请在 Word 或 WPS 中另存为 .docx 后重试"),
+                    ))
                     continue
 
             result = check_document(docx_path, rules_json_path=rules_json_path)
@@ -494,13 +701,8 @@ def check():
             elif "PermissionError" in error_msg:
                 error_msg = "文件被占用，请关闭 Word 后重试"
             else:
-                error_msg = f"文件解析失败，请确认为有效的 Word 文档（.doc 或 .docx）"
-            results.append(type("Err", (), {
-                "filename": filename,
-                "issues": [],
-                "summary": {"errors": 0, "warnings": 0, "infos": 0},
-                "error": error_msg
-            })())
+                error_msg = "文件解析失败，请确认为有效的 Word 文档（.doc 或 .docx）"
+            results.append(FailedResult(filename=filename, error=error_msg))
 
         finally:
             for cleanup_path in {filepath, docx_path}:
@@ -538,6 +740,10 @@ def download_report(report_id):
             download_name=f"文档格式检查报告_{report_id}.html",
         )
     return "报告不存在", 404
+
+
+# 启动时校正一次主模板指向，避免设置文件里留着已删除的模板。
+sync_default_profile()
 
 
 if __name__ == "__main__":
