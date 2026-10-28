@@ -1,0 +1,34 @@
+本次更新说明（2026-10-28）
+================================
+
+一、这次改了什么
+1. 修复 start.bat 双击无法启动的问题。
+   - 原因：原脚本先用 where python 找解释器，会命中 Windows 自带的
+     Microsoft Store 占位程序（不是真 Python），导致虚拟环境建不出来、
+     后续 pip 也找不到。
+   - 现在：优先使用 py 启动器（真正的 Python 启动器），并回退到真实
+     Python 安装路径，最后才用 python / python3。
+2. 依赖安装改为“每次启动自检”：
+   - 启动时先检测 flask / python-docx 是否存在，缺了才安装；
+   - 安装失败会明确打印错误并停下，不再静默跳过；
+   - 先走清华镜像，失败自动回退官方源。
+3. start.bat 采用 纯 ASCII + CRLF 换行，避免编码/换行导致的批处理
+   解析错乱（之前出现的 'thon'、'tart' 等碎片就是这个原因）。
+
+二、怎么用
+- Windows：双击 start.bat 即可。首次运行会自动创建 venv 并联网安装依赖，
+  约 1 分钟，然后自动打开浏览器访问 http://127.0.0.1:5001。
+- macOS：双击 start.command（原有逻辑未改）。
+
+三、注意
+- 压缩包内【不含】venv 目录（那是本机环境，33MB，且路径固定不可移植）。
+  首次运行 start.bat 会自动生成。
+- 也【不含】settings.json、uploads、__pycache__ 等运行产物，均为本机数据，
+  程序启动时会自动重建。
+
+四、文件清单
+- 源码：app.py、checker.py、report.py、format_rules.json
+- 启动：start.bat（Windows）、start.command（macOS）
+- 依赖：requirements.txt
+- 目录：specs/（模板）、templates/、static/、tests/
+- 文档：README.md、使用指南.md、使用步骤.txt、使用说明.*

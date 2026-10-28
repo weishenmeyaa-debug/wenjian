@@ -1,68 +1,82 @@
 @echo off
-title 格式检查器 - Word 文档格式检查
+setlocal
+title Word Document Format Checker
 cd /d "%~dp0"
 
-:: 检测 Python
-where python >nul 2>&1
-if %errorlevel% equ 0 (
-    set PYTHON=python
-    goto :found
-)
-where python3 >nul 2>&1
-if %errorlevel% equ 0 (
-    set PYTHON=python3
-    goto :found
-)
+set "PYTHON="
 where py >nul 2>&1
-if %errorlevel% equ 0 (
-    set PYTHON=py -3
-    goto :found
-)
+if not errorlevel 1 goto :use_py
+where python >nul 2>&1
+if not errorlevel 1 goto :use_python
+where python3 >nul 2>&1
+if not errorlevel 1 goto :use_python3
+goto :no_python
 
-echo [错误] 未找到 Python，请先安装：
-echo    打开 Microsoft Store 搜索 "Python 3.12" 安装即可
-echo    或去 https://www.python.org/downloads/ 下载
+:use_py
+set "PYTHON=py -3"
+goto :found
+
+:use_python
+set "PYTHON=python"
+goto :found
+
+:use_python3
+set "PYTHON=python3"
+goto :found
+
+:no_python
+echo [ERROR] Python not found. Please install Python 3 first.
+echo        Download: https://www.python.org/downloads/
 echo.
 pause
 exit /b 1
 
 :found
-:: 创建虚拟环境
-if not exist "venv" (
-    echo [安装] 首次运行，正在安装依赖（需要联网，大约 1 分钟）...
-    %PYTHON% -m venv venv
-    call venv\Scripts\activate.bat
-    pip install -r requirements.txt -q -i https://pypi.tuna.tsinghua.edu.cn/simple
-    if errorlevel 1 pip install -r requirements.txt -q
-    if errorlevel 1 (
-        echo.
-        echo [错误] 依赖安装失败，请检查网络后重试。
-        pause
-        exit /b 1
-    )
-) else (
-    call venv\Scripts\activate.bat
-)
+if exist "venv\Scripts\python.exe" goto :have_venv
+echo [SETUP] First run: creating virtual environment...
+%PYTHON% -m venv venv
+if errorlevel 1 goto :venv_fail
 
-:: 从 5001 开始寻找可用端口，避免误打开其他程序
-set PORT=5001
+:have_venv
+call venv\Scripts\activate.bat
+
+python -c "import flask, docx" >nul 2>&1
+if not errorlevel 1 goto :deps_ok
+
+echo [SETUP] Installing dependencies, needs internet, about 1 minute...
+python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+if not errorlevel 1 goto :deps_check
+echo [INFO] Mirror failed, retrying with default index...
+python -m pip install -r requirements.txt
+
+:deps_check
+python -c "import flask, docx" >nul 2>&1
+if not errorlevel 1 goto :deps_ok
+echo [ERROR] Dependency installation failed. Check your network and retry.
+pause
+exit /b 1
+
+:venv_fail
+echo [ERROR] Failed to create virtual environment.
+pause
+exit /b 1
+
+:deps_ok
+set "PORT=5001"
 :check_port
 netstat -ano | findstr /R /C:":%PORT% .*LISTENING" >nul
-if %errorlevel% equ 0 (
-    set /a PORT+=1
-    goto :check_port
-)
+if errorlevel 1 goto :port_ok
+set /a PORT+=1
+goto :check_port
 
-:: 启动
+:port_ok
 echo.
-echo [成功] 格式检查器启动成功！浏览器将自动打开...
-echo    如果没有自动打开，请访问: http://127.0.0.1:%PORT%
-echo    关闭此窗口即可停止程序
+echo [OK] Format Checker is starting. Browser will open automatically.
+echo     If not, open manually: http://127.0.0.1:%PORT%
+echo     Close this window to stop the service.
 echo.
 
-:: 延迟打开浏览器
 start "" /b cmd /c "timeout /t 2 >nul & start http://127.0.0.1:%PORT%"
 
-:: 运行 Flask（用探测到的 Python，兼容 py -3 启动器）
-%PYTHON% app.py --port %PORT%
+python app.py --port %PORT%
 pause
