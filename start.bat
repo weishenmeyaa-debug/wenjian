@@ -1,9 +1,8 @@
 @echo off
-chcp 65001 >nul 2>&1
-title æ ¼å¼æ£€æŸ¥å™¨ - Word æ–‡æ¡£æ ¼å¼æ£€æŸ¥
+title ¸ñÊ½¼ì²éÆ÷ - Word ÎÄµµ¸ñÊ½¼ì²é
 cd /d "%~dp0"
 
-:: æ£€æµ‹ Python
+:: ¼ì²â Python
 where python >nul 2>&1
 if %errorlevel% equ 0 (
     set PYTHON=python
@@ -20,24 +19,24 @@ if %errorlevel% equ 0 (
     goto :found
 )
 
-echo âŒ æœªæ‰¾åˆ° Pythonï¼Œè¯·å…ˆå®‰è£…ï¼š
-echo    æ‰“å¼€ Microsoft Store æœç´¢ "Python 3.12" å®‰è£…å³å¯
-echo    æˆ–å» https://www.python.org/downloads/ ä¸‹è½½
+echo [´íÎó] Î´ÕÒµ½ Python£¬ÇëÏÈ°²×°£º
+echo    ´ò¿ª Microsoft Store ËÑË÷ "Python 3.12" °²×°¼´¿É
+echo    »òÈ¥ https://www.python.org/downloads/ ÏÂÔØ
 echo.
 pause
 exit /b 1
 
 :found
-:: åˆ›å»ºè™šæ‹Ÿç¯å¢ƒ
+:: ´´½¨ĞéÄâ»·¾³
 if not exist "venv" (
-    echo ğŸ“¦ é¦–æ¬¡è¿è¡Œï¼Œæ­£åœ¨å®‰è£…ä¾èµ–ï¼ˆéœ€è¦è”ç½‘ï¼Œå¤§çº¦ 1 åˆ†é’Ÿï¼‰...
+    echo [°²×°] Ê×´ÎÔËĞĞ£¬ÕıÔÚ°²×°ÒÀÀµ£¨ĞèÒªÁªÍø£¬´óÔ¼ 1 ·ÖÖÓ£©...
     %PYTHON% -m venv venv
     call venv\Scripts\activate.bat
     pip install -r requirements.txt -q -i https://pypi.tuna.tsinghua.edu.cn/simple
     if errorlevel 1 pip install -r requirements.txt -q
     if errorlevel 1 (
         echo.
-        echo âŒ ä¾èµ–å®‰è£…å¤±è´¥ï¼Œè¯·æ£€æŸ¥ç½‘ç»œåé‡è¯•ã€‚
+        echo [´íÎó] ÒÀÀµ°²×°Ê§°Ü£¬Çë¼ì²éÍøÂçºóÖØÊÔ¡£
         pause
         exit /b 1
     )
@@ -45,7 +44,7 @@ if not exist "venv" (
     call venv\Scripts\activate.bat
 )
 
-:: ä» 5001 å¼€å§‹å¯»æ‰¾å¯ç”¨ç«¯å£ï¼Œé¿å…è¯¯æ‰“å¼€å…¶ä»–ç¨‹åº
+:: ´Ó 5001 ¿ªÊ¼Ñ°ÕÒ¿ÉÓÃ¶Ë¿Ú£¬±ÜÃâÎó´ò¿ªÆäËû³ÌĞò
 set PORT=5001
 :check_port
 netstat -ano | findstr /R /C:":%PORT% .*LISTENING" >nul
@@ -54,16 +53,16 @@ if %errorlevel% equ 0 (
     goto :check_port
 )
 
-:: å¯åŠ¨
+:: Æô¶¯
 echo.
-echo âœ… æ ¼å¼æ£€æŸ¥å™¨å¯åŠ¨æˆåŠŸï¼æµè§ˆå™¨å°†è‡ªåŠ¨æ‰“å¼€...
-echo    å¦‚æœæ²¡æœ‰è‡ªåŠ¨æ‰“å¼€ï¼Œè¯·è®¿é—®: http://127.0.0.1:%PORT%
-echo    å…³é—­æ­¤çª—å£å³å¯åœæ­¢ç¨‹åº
+echo [³É¹¦] ¸ñÊ½¼ì²éÆ÷Æô¶¯³É¹¦£¡ä¯ÀÀÆ÷½«×Ô¶¯´ò¿ª...
+echo    Èç¹ûÃ»ÓĞ×Ô¶¯´ò¿ª£¬Çë·ÃÎÊ: http://127.0.0.1:%PORT%
+echo    ¹Ø±Õ´Ë´°¿Ú¼´¿ÉÍ£Ö¹³ÌĞò
 echo.
 
-:: å»¶è¿Ÿæ‰“å¼€æµè§ˆå™¨
+:: ÑÓ³Ù´ò¿ªä¯ÀÀÆ÷
 start "" /b cmd /c "timeout /t 2 >nul & start http://127.0.0.1:%PORT%"
 
-:: è¿è¡Œ Flask
-python app.py --port %PORT%
+:: ÔËĞĞ Flask£¨ÓÃÌ½²âµ½µÄ Python£¬¼æÈİ py -3 Æô¶¯Æ÷£©
+%PYTHON% app.py --port %PORT%
 pause
